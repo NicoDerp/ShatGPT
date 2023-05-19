@@ -42,7 +42,7 @@ class Layer:
         self.size = size
         self.output = np.zeros(size)
         self.dOutput = np.zeros(size)
-        self.gradient = np.zeros(size)
+        self.gradient = None
         self.prev = None
         self.next = None
 
@@ -64,7 +64,10 @@ class Layer:
     def feedForward(self):
         pass
 
-    def calculateGradient(self):
+    def calculateGradient(self, nGradient=None):
+        pass
+
+    def updateParameters(self, n, learningRate):
         pass
 
     def setup_(self, prev, nextL):
@@ -83,15 +86,24 @@ class FFLayer(Layer):
 
         self.weights = None
         self.biases = np.zeros(self.size)
+        self.gradient = np.zeros(self.size)
 
     def feedForward(self):
         self.output = self.weights.dot(self.prev.output) + self.biases
         self.dOutput = self.dActivation(self.output)
         self.output = self.activation(self.output)
 
-    def calculateGradient(self):
-        self.gradient = self.weights.T.dot(self.next.gradient) * self.dOutput
-        return self.gradient
+    def calculateGradient(self, nGradient=None):
+        if nGradient is not None:
+            self.gradient += self.next.weights.T.dot(nGradient) * self.dOutput
+        else:
+            self.gradient += self.next.weights.T.dot(self.next.gradient) * self.dOutput
+
+    def updateParameters(self, n, learningRate):
+        # Average the gradients
+        self.gradient /= n
+        self.weights -= learningRate * self.gradient.dot(self.prev.output.T)
+        self.biases -= learningRate * self.gradient
 
     def setup_(self, prev, nextL):
         super().setup_(prev, nextL)
@@ -113,6 +125,8 @@ class LSTMLayer(Layer):
         self.oBiases = np.zeros(self.size)
         self.states = np.zeros(size)
 
+        self.gradient = np.array((size, 4))
+
     def feedForward(self):
         vt = np.concatenate((self.states, self.prev.output))
 
@@ -124,7 +138,7 @@ class LSTMLayer(Layer):
         self.output = ft * self.output + it * ct
         self.states = ot * np.tanh(self.output)
 
-    def calculateGradient(self):
+    def calculateGradient(self, nGradient=None):
         # self.gradient = self.weights.T.dot(self.next.gradient) * self.dOutput
         return self.gradient
 
@@ -168,13 +182,12 @@ class AI:
             self.layers[i].feedForward()
 
     def train(self, dataset, epochs=1):
+        # For each epoch
         for epoch in range(epochs):
             print(f"Epoch {epoch + 1}/{epochs}")
 
             # For each sentence
             for sentence in dataset:
-
-                gradients = []
 
                 # For each word / timestep
                 for inputState, actual in sentence:
@@ -184,21 +197,18 @@ class AI:
                     # errorL = lossDerivative * self.layers[-1].dActivation(self.layers[-1].zNeurons)
                     errorL = lossDerivative * self.layers[-1].dOutput
 
-                    gList = []
                     # L-1 .. 0
                     for i in range(len(self.layers) - 2, -1, -1):
                         layer = self.layers[i]
-                        g = layer.calculateGradient()
-                        print("a", g)
-                        gList.append(g)
-                    gradients.append(gList)
+                        layer.calculateGradient()
+
                     # self.layers[-2].weights -= 0.001 * errorL * self.layers[-2].neurons
 
-                print(gradients)
-
                 # Sum gradients for each layer
-                gradients = np.sum(gradients, axis=0)
-                print(gradients)
+                # gradients = np.sum(gradients, axis=0)
+
+            for layer in self.layers:
+                layer.updateParameters(sum([len(d[1]) for d in dataset]), self.learningRate)
 
 
 ai = AI()
