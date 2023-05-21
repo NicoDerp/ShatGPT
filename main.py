@@ -64,10 +64,13 @@ class Layer:
     def feedForward(self):
         pass
 
-    def calculateGradient(self, nGradient=None):
+    def calculateGradient(self):
         pass
 
     def updateParameters(self, n, learningRate):
+        pass
+
+    def reset(self):
         pass
 
     def setup_(self, prev, nextL):
@@ -93,11 +96,8 @@ class FFLayer(Layer):
         self.dOutput = self.dActivation(self.output)
         self.output = self.activation(self.output)
 
-    def calculateGradient(self, nGradient=None):
-        if nGradient is not None:
-            self.gradient += self.next.weights.T.dot(nGradient) * self.dOutput
-        else:
-            self.gradient += self.next.weights.T.dot(self.next.gradient) * self.dOutput
+    def calculateGradient(self):
+        self.gradient += self.next.weights.T.dot(self.next.gradient) * self.dOutput
 
     def updateParameters(self, n, learningRate):
         # Average the gradients
@@ -173,11 +173,8 @@ class LSTMLayer(Layer):
         self.output = self.ft * self.output + self.it * self.zg
         self.states = self.ot * np.tanh(self.output)
 
-    def calculateGradient(self, nGradient=None):
-        if nGradient is None:
-            nGradient = self.next.gradient
-
-        nGradient = self.next.weights.T.dot(nGradient)
+    def calculateGradient(self):
+        nGradient = self.next.weights.T.dot(self.next.gradient)
 
         tmp1 = nGradient * np.tanh(self.output) * dSigmoid(self.zo)
         tmp2 = nGradient * self.ot * dTanH(self.output) * self.output * dSigmoid(self.zf)
@@ -230,6 +227,9 @@ class LSTMLayer(Layer):
         self.o2Weights -= learningRate * self.o2WeightsGr
         self.oBiases -= learningRate * self.oBiasesGr
 
+    def reset(self):
+        self.states = np.zeros(self.size)
+
     def setup_(self, prev, nextL):
         super().setup_(prev, nextL)
 
@@ -248,13 +248,14 @@ class AI:
     def __init__(self):
         self.layers = [InputLayer(3),
                        # LSTMLayer(4),
+                       FFLayer(5, activation="ReLU"),
                        FFLayer(2, activation="ReLU")]
 
         self.setupLayers()
         self.learningRate = 0.001
 
     def setupLayers(self):
-        if len(self.layers) < 2:
+        if len(self.layers) < 3:
             raise ValueError(f"[ERROR] At least 3 layers are required")
 
         if self.layers[0].layerType != "InputLayer":
@@ -267,8 +268,7 @@ class AI:
 
     def feedForward(self, inputState):
         if inputState.shape != self.layers[0].output.shape:
-            raise ValueError(
-                f"[ERROR] Feed-forward input's shape is not {self.layers[0].output.shape} but {inputState.shape}")
+            raise ValueError(f"[ERROR] Feed-forward input's shape is not {self.layers[0].output.shape} but {inputState.shape}")
 
         self.layers[0].output = inputState
         for i in range(1, len(self.layers)):
@@ -277,12 +277,15 @@ class AI:
     def train(self, dataset, epochs=1):
         # For each epoch
         for epoch in range(epochs):
-            print(f"Epoch {epoch + 1}/{epochs}")
+            #print(f"Epoch {epoch + 1}/{epochs}")
 
             loss = 0
 
             # For each sentence
             for sentence in dataset:
+
+                for layer in self.layers:
+                    layer.reset()
 
                 # For each word / timestep
                 for inputState, actual in sentence:
@@ -295,10 +298,10 @@ class AI:
                     # errorL = lossDerivative * self.layers[-1].dActivation(self.layers[-1].zNeurons)
                     errorL = lossDerivative * self.layers[-1].dOutput
 
-                    self.layers[-2].calculateGradient(errorL)
+                    self.layers[-1].gradient = errorL
 
                     # L-1 .. 0
-                    for i in range(len(self.layers) - 2, -1, -1):
+                    for i in range(len(self.layers) - 2, 0, -1):
                         layer = self.layers[i]
                         layer.calculateGradient()
 
@@ -310,9 +313,9 @@ class AI:
             for layer in self.layers:
                 layer.updateParameters(sum([len(d) for d in dataset]), self.learningRate)
 
-            if epoch % 1 == 0:
+            if epoch % 100 == 0:
                 # loss = loss / sum([len(d) for d in dataset])
-                print(loss)
+                print(f"{loss:.100f}")
 
 
 print(dReLU(np.array([-1, 0, 1, 2])))
@@ -338,7 +341,7 @@ dataset = [
     #     [np.array([0, 1, 2]), np.array([1, 0.0])]
     # ]
 ]
-ai.train(dataset, epochs=1000)
+ai.train(dataset, epochs=100000)
 
 # print(a.neurons)
 # print(a.weights.dot(a.neurons))
