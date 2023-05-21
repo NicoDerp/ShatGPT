@@ -33,7 +33,7 @@ def dSigmoid(x):
 
 
 def dTanH(x):
-    return 1 - np.tanh(x)**2
+    return 1 - np.tanh(x) ** 2
 
 
 class Layer:
@@ -79,8 +79,9 @@ class Layer:
 
 
 class InputLayer(Layer):
-    def __init__(self, size):
-        super().__init__("InputLayer", size, "Linear")
+    def __init__(self, shape):
+        super().__init__("InputLayer", np.prod(shape), "Linear")
+        self.shape = shape
 
 
 class FFLayer(Layer):
@@ -245,14 +246,12 @@ class LSTMLayer(Layer):
 
 
 class AI:
-    def __init__(self):
-        self.layers = [InputLayer(3),
-                       # LSTMLayer(4),
-                       FFLayer(5, activation="ReLU"),
-                       FFLayer(2, activation="ReLU")]
-
+    def __init__(self, layers, optimizer="Adam", learningRate=0.0006):
+        self.layers = layers
         self.setupLayers()
-        self.learningRate = 0.001
+
+        self.learningRate = learningRate
+        self.optimizer = optimizer
 
     def setupLayers(self):
         if len(self.layers) < 3:
@@ -267,17 +266,18 @@ class AI:
         self.layers[-1].setup_(self.layers[-2], None)
 
     def feedForward(self, inputState):
-        if inputState.shape != self.layers[0].output.shape:
-            raise ValueError(f"[ERROR] Feed-forward input's shape is not {self.layers[0].output.shape} but {inputState.shape}")
+        if inputState.shape != self.layers[0].shape:
+            raise ValueError(
+                f"[ERROR] Feed-forward input's shape is not {self.layers[0].output.shape} but {inputState.shape}")
 
-        self.layers[0].output = inputState
+        self.layers[0].output = inputState.flatten()
         for i in range(1, len(self.layers)):
             self.layers[i].feedForward()
 
     def train(self, dataset, epochs=1):
         # For each epoch
         for epoch in range(epochs):
-            #print(f"Epoch {epoch + 1}/{epochs}")
+            # print(f"Epoch {epoch + 1}/{epochs}")
 
             loss = 0
 
@@ -291,7 +291,7 @@ class AI:
                 for inputState, actual in sentence:
                     self.feedForward(inputState)
 
-                    loss += np.mean((actual - self.layers[-1].output)**2)
+                    loss += np.mean((actual - self.layers[-1].output) ** 2)
 
                     # lossDerivative = (2 / len(self.layers)) * (self.layers[-1].output - actual)
                     lossDerivative = self.layers[-1].output - actual
@@ -320,7 +320,12 @@ class AI:
 
 print(dReLU(np.array([-1, 0, 1, 2])))
 
-ai = AI()
+ai = AI([
+    InputLayer((3,)),
+    # LSTMLayer(5),
+    FFLayer(5, activation="ReLU"),
+    FFLayer(2, activation="ReLU")
+])
 
 # ai.feedForward(np.ones(ai.layers[0].size))
 # for layer in ai.layers:
@@ -330,6 +335,11 @@ ai = AI()
 #     else:
 #         print(layer.output)
 #     print()
+
+ai.compile(
+    optimizer="Adam",
+    learningRate=0.0006
+)
 
 dataset = [
     [
@@ -341,6 +351,7 @@ dataset = [
     #     [np.array([0, 1, 2]), np.array([1, 0.0])]
     # ]
 ]
+
 ai.train(dataset, epochs=100000)
 
 # print(a.neurons)
