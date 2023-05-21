@@ -11,11 +11,11 @@ def dLinearActivation(x):
 
 
 def ReLU(x):
-    return max(0, x)
+    return np.maximum(0, x)
 
 
 def dReLU(x):
-    return max(0, 1)
+    return np.greater(x, 0).astype(int)
 
 
 def Softmax(x):
@@ -164,7 +164,7 @@ class LSTMLayer(Layer):
         self.zi = self.i1Weights.dot(self.states) + self.i2Weights.dot(self.prev.output) + self.iBiases
         self.it = Sigmoid(self.zi)
 
-        self.zg = np.tanh(self.c1Weights.dot(self.states) + self.c2Weights.dot(self.prev.output) + self.cBiases)
+        self.zg = self.c1Weights.dot(self.states) + self.c2Weights.dot(self.prev.output) + self.cBiases
         self.gt = np.tanh(self.zg)
 
         self.zo = self.o1Weights.dot(self.states) + self.o2Weights.dot(self.prev.output) + self.oBiases
@@ -184,21 +184,51 @@ class LSTMLayer(Layer):
         tmp3 = nGradient * self.ot * dTanH(self.output) * self.gt * dSigmoid(self.zi)
         tmp4 = nGradient * self.ot * dTanH(self.output) * self.it * dTanH(self.zg)
 
-        self.f1WeightsGr = tmp1 * self.prev.output
-        self.f2WeightsGr = tmp1 * self.states
+        tmp1r = tmp1.reshape((-1, 1))
+        tmp2r = tmp2.reshape((-1, 1))
+        tmp3r = tmp3.reshape((-1, 1))
+        tmp4r = tmp4.reshape((-1, 1))
+
+        prevOutput = self.prev.output.reshape((-1, 1))
+        states = self.states.reshape((-1, 1))
+
+        # print(np.dot(prevOutput, tmp1.T))
+
+        # Normal transpose
+        # self.prev.output.T
+
+        self.f1WeightsGr = np.dot(tmp1r, states.T)
+        self.f2WeightsGr = np.dot(tmp1r, prevOutput.T)
         self.fBiasesGr = tmp1
 
-        self.i1WeightsGr = tmp2 * self.prev.output
-        self.i2WeightsGr = tmp2 * self.states
+        self.i1WeightsGr = np.dot(tmp2r, states.T)
+        self.i2WeightsGr = np.dot(tmp2r, prevOutput.T)
         self.iBiasesGr = tmp2
 
-        self.c1WeightsGr = tmp3 * self.prev.output
-        self.c2WeightsGr = tmp3 * self.states
+        self.c1WeightsGr = np.dot(tmp3r, states.T)
+        self.c2WeightsGr = np.dot(tmp3r, prevOutput.T)
         self.cBiasesGr = tmp3
 
-        self.o1WeightsGr = tmp4 * self.prev.output
-        self.o2WeightsGr = tmp4 * self.states
+        self.o1WeightsGr = np.dot(tmp4r, states.T)
+        self.o2WeightsGr = np.dot(tmp4r, prevOutput.T)
         self.oBiasesGr = tmp4
+
+    def updateParameters(self, n, learningRate):
+        self.f1Weights -= learningRate * self.f1WeightsGr
+        self.f2Weights -= learningRate * self.f2WeightsGr
+        self.fBiases -= learningRate * self.fBiasesGr
+
+        self.i1Weights -= learningRate * self.i1WeightsGr
+        self.i2Weights -= learningRate * self.i2WeightsGr
+        self.iBiases -= learningRate * self.iBiasesGr
+
+        self.c1Weights -= learningRate * self.c1WeightsGr
+        self.c2Weights -= learningRate * self.c2WeightsGr
+        self.cBiases -= learningRate * self.cBiasesGr
+
+        self.o1Weights -= learningRate * self.o1WeightsGr
+        self.o2Weights -= learningRate * self.o2WeightsGr
+        self.oBiases -= learningRate * self.oBiasesGr
 
     def setup_(self, prev, nextL):
         super().setup_(prev, nextL)
@@ -217,8 +247,8 @@ class LSTMLayer(Layer):
 class AI:
     def __init__(self):
         self.layers = [InputLayer(3),
-                       LSTMLayer(4),
-                       FFLayer(2, activation="TanH")]
+                       # LSTMLayer(4),
+                       FFLayer(2, activation="ReLU")]
 
         self.setupLayers()
         self.learningRate = 0.001
@@ -249,12 +279,16 @@ class AI:
         for epoch in range(epochs):
             print(f"Epoch {epoch + 1}/{epochs}")
 
+            loss = 0
+
             # For each sentence
             for sentence in dataset:
 
                 # For each word / timestep
                 for inputState, actual in sentence:
                     self.feedForward(inputState)
+
+                    loss += np.mean((actual - self.layers[-1].output)**2)
 
                     # lossDerivative = (2 / len(self.layers)) * (self.layers[-1].output - actual)
                     lossDerivative = self.layers[-1].output - actual
@@ -274,8 +308,14 @@ class AI:
                 # gradients = np.sum(gradients, axis=0)
 
             for layer in self.layers:
-                layer.updateParameters(sum([len(d[1]) for d in dataset]), self.learningRate)
+                layer.updateParameters(sum([len(d) for d in dataset]), self.learningRate)
 
+            if epoch % 1 == 0:
+                # loss = loss / sum([len(d) for d in dataset])
+                print(loss)
+
+
+print(dReLU(np.array([-1, 0, 1, 2])))
 
 ai = AI()
 
@@ -290,15 +330,15 @@ ai = AI()
 
 dataset = [
     [
-        [np.array([1, 2, 3]), np.array([0, 0.5])],
-        [np.array([4, 1, 2]), np.array([1, 0])]
+        [np.array([0, 0, 1]), np.array([0, 0.5])],
+        # [np.array([4, 1, 2]), np.array([1, 0])]
     ],
-    [
-        [np.array([5, 2, 1]), np.array([1, 0.0])],
-        [np.array([0, 1, 2]), np.array([1, 0.0])]
-    ]
+    # [
+    #     [np.array([5, 2, 1]), np.array([1, 0.0])],
+    #     [np.array([0, 1, 2]), np.array([1, 0.0])]
+    # ]
 ]
-ai.train(dataset, epochs=100)
+ai.train(dataset, epochs=1000)
 
 # print(a.neurons)
 # print(a.weights.dot(a.neurons))
