@@ -45,6 +45,8 @@ class Layer:
         self.gradient = None
         self.prev = None
         self.next = None
+        self.optimizerFunc = None
+        self.optAttrs = {}
 
         if activation == "Linear":
             self.activation = LinearActivation
@@ -55,6 +57,9 @@ class Layer:
         elif activation == "TanH":
             self.activation = np.tanh
             self.dActivation = dTanH
+        elif activation == "Sigmoid":
+            self.activation = Sigmoid
+            self.dActivation = dSigmoid
         elif activation == "Softmax":
             self.activation = Softmax
             self.dActivation = NotImplementedError
@@ -67,7 +72,7 @@ class Layer:
     def calculateGradient(self):
         pass
 
-    def updateParameters(self, n, learningRate):
+    def updateParameters(self, n):
         pass
 
     def reset(self):
@@ -100,14 +105,14 @@ class FFLayer(Layer):
     def calculateGradient(self):
         self.gradient += self.next.weights.T.dot(self.next.gradient) * self.dOutput
 
-    def updateParameters(self, n, learningRate):
+    def updateParameters(self, n):
         # Average the gradients
         self.gradient /= n
-        self.weights -= learningRate * self.gradient.dot(self.output[np.newaxis].T)
-        self.biases -= learningRate * self.gradient
+        self.weights -= self.optimizerFunc(0, self.gradient.dot(self.output[np.newaxis].T))
+        self.biases -= self.optimizerFunc(1, self.gradient)
 
-    def setup_(self, prev, nextL):
-        super().setup_(prev, nextL)
+    def setup_(self, prev, nextL, optimizerFunc):
+        super().setup_(prev, nextL, optimizerFunc)
 
         self.weights = np.random.rand(self.size, self.prev.size)
 
@@ -211,28 +216,28 @@ class LSTMLayer(Layer):
         self.o2WeightsGr = np.dot(tmp4r, prevOutput.T)
         self.oBiasesGr = tmp4
 
-    def updateParameters(self, n, learningRate):
-        self.f1Weights -= learningRate * self.f1WeightsGr
-        self.f2Weights -= learningRate * self.f2WeightsGr
-        self.fBiases -= learningRate * self.fBiasesGr
+    def updateParameters(self, n):
+        self.f1Weights -= self.optimizerFunc(0, self.f1WeightsGr)
+        self.f2Weights -= self.optimizerFunc(1, self.f2WeightsGr)
+        self.fBiases -= self.optimizerFunc(2, self.fBiasesGr)
 
-        self.i1Weights -= learningRate * self.i1WeightsGr
-        self.i2Weights -= learningRate * self.i2WeightsGr
-        self.iBiases -= learningRate * self.iBiasesGr
+        self.i1Weights -= self.optimizerFunc(3, self.i1WeightsGr)
+        self.i2Weights -= self.optimizerFunc(4, self.i2WeightsGr)
+        self.iBiases -= self.optimizerFunc(5, self.iBiasesGr)
 
-        self.c1Weights -= learningRate * self.c1WeightsGr
-        self.c2Weights -= learningRate * self.c2WeightsGr
-        self.cBiases -= learningRate * self.cBiasesGr
+        self.c1Weights -= self.optimizerFunc(6, self.c1WeightsGr)
+        self.c2Weights -= self.optimizerFunc(7, self.c2WeightsGr)
+        self.cBiases -= self.optimizerFunc(8, self.cBiasesGr)
 
-        self.o1Weights -= learningRate * self.o1WeightsGr
-        self.o2Weights -= learningRate * self.o2WeightsGr
-        self.oBiases -= learningRate * self.oBiasesGr
+        self.o1Weights -= self.optimizerFunc(9, self.o1WeightsGr)
+        self.o2Weights -= self.optimizerFunc(10, self.o2WeightsGr)
+        self.oBiases -= self.optimizerFunc(10, self.oBiasesGr)
 
     def reset(self):
         self.states = np.zeros(self.size)
 
-    def setup_(self, prev, nextL):
-        super().setup_(prev, nextL)
+    def setup_(self, prev, nextL, optimizerFunc):
+        super().setup_(prev, nextL, optimizerFunc)
 
         self.f1Weights = np.random.rand(self.size, self.size)
         self.i1Weights = np.random.rand(self.size, self.size)
@@ -247,27 +252,48 @@ class LSTMLayer(Layer):
 
 class AI:
     def __init__(self, layers, optimizer="Adam", learningRate=0.0006):
-        self.layers = layers
-        self.setupLayers()
-
         self.learningRate = learningRate
         self.optimizer = optimizer
 
-        if self.optimizer not in ["Adam", "Momentum", "None"]:
+        if self.optimizer == "Adam":
+            self.B1 = 0.9
+            self.B2 = 0.999
+            self.epsilon = 10**-8
+            self.Mt = np.zeros(0)
+            self.optimizerFunc = self._adam
+        elif self.optimizer == "Momentum":
+            self.optimizerFunc = self._momentum
+            self.vt = 0
+        elif self.optimizer == "None":
+            self.optimizerFunc = self._none
+        else:
             raise ValueError(f"[ERROR] Invalid optimizer passed. You passed '{self.optimizer}'"
                              f", while only 'Adam', 'Momentum' and 'None' are allowed.")
 
-    def setupLayers(self):
+        self.layers = layers
+        self._setupLayers(self.optimizerFunc)
+
+    def _adam(self, layer, index, gradient):
+        pass
+
+    def _momentum(self, layer, index, gradient):
+        layer.optAttrs[index] = 0.9*layer.optAttrs[index] + self.learningRate*gradient
+        return self.vt
+
+    def _none(self, layer, index, gradient):
+        return self.learningRate * gradient
+
+    def _setupLayers(self, optimizerFunc):
         if len(self.layers) < 3:
             raise ValueError(f"[ERROR] At least 3 layers are required")
 
         if self.layers[0].layerType != "InputLayer":
             raise ValueError(f"[ERROR] First layer isn't InputLayer")
 
-        self.layers[0].setup_(None, self.layers[1])
+        self.layers[0].setup_(None, self.layers[1], optimizerFunc)
         for i in range(1, len(self.layers) - 1):
-            self.layers[i].setup_(self.layers[i - 1], self.layers[i + 1])
-        self.layers[-1].setup_(self.layers[-2], None)
+            self.layers[i].setup_(self.layers[i - 1], self.layers[i + 1], optimizerFunc)
+        self.layers[-1].setup_(self.layers[-2], None, optimizerFunc)
 
     def feedForward(self, inputState):
         if inputState.shape != self.layers[0].shape:
@@ -315,23 +341,25 @@ class AI:
                 # gradients = np.sum(gradients, axis=0)
 
             for layer in self.layers:
-                layer.updateParameters(sum([len(d) for d in dataset]), self.learningRate)
+                layer.updateParameters(sum([len(d) for d in dataset]))
+
+            if loss < 0.0000001:
+                print(f"Done at epoch {epoch+1}/{epochs} with loss {loss:.10f}")
+                return
 
             if epoch % 100 == 0:
                 # loss = loss / sum([len(d) for d in dataset])
-                print(f"{loss:.100f}")
+                print(f"{epoch+1}/{epochs} {loss:.10f}")
 
-
-print(dReLU(np.array([-1, 0, 1, 2])))
 
 ai = AI(layers=[
             InputLayer((3,)),
             # LSTMLayer(5),
-            FFLayer(5, activation="ReLU"),
+            FFLayer(5, activation="Sigmoid"),
             FFLayer(2, activation="ReLU")
         ],
-        optimizer="Adam",
-        learningRate=0.0006)
+        optimizer="Momentum",
+        learningRate=0.01)
 
 # ai.feedForward(np.ones(ai.layers[0].size))
 # for layer in ai.layers:
