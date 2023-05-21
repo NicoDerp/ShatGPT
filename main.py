@@ -253,6 +253,10 @@ class AI:
         self.learningRate = learningRate
         self.optimizer = optimizer
 
+        if self.optimizer not in ["Adam", "Momentum", "None"]:
+            raise ValueError(f"[ERROR] Invalid optimizer passed. You passed '{self.optimizer}'"
+                             f", while only 'Adam', 'Momentum' and 'None' are allowed.")
+
     def setupLayers(self):
         if len(self.layers) < 3:
             raise ValueError(f"[ERROR] At least 3 layers are required")
@@ -320,12 +324,14 @@ class AI:
 
 print(dReLU(np.array([-1, 0, 1, 2])))
 
-ai = AI([
-    InputLayer((3,)),
-    # LSTMLayer(5),
-    FFLayer(5, activation="ReLU"),
-    FFLayer(2, activation="ReLU")
-])
+ai = AI(layers=[
+            InputLayer((3,)),
+            # LSTMLayer(5),
+            FFLayer(5, activation="ReLU"),
+            FFLayer(2, activation="ReLU")
+        ],
+        optimizer="Adam",
+        learningRate=0.0006)
 
 # ai.feedForward(np.ones(ai.layers[0].size))
 # for layer in ai.layers:
@@ -335,11 +341,6 @@ ai = AI([
 #     else:
 #         print(layer.output)
 #     print()
-
-ai.compile(
-    optimizer="Adam",
-    learningRate=0.0006
-)
 
 dataset = [
     [
