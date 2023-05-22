@@ -204,7 +204,7 @@ class LSTMLayer(Layer):
         self.ot = Sigmoid(self.zo)
 
         self.lOutput = self.output
-        self.output = self.ft * self.output + self.it * self.zg
+        self.output = self.ft * self.output + self.it * self.gt
         self.states = self.ot * np.tanh(self.output)
 
     def calculateGradient(self):
