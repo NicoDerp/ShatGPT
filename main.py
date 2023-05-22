@@ -371,14 +371,15 @@ class AI:
     def feedForward(self, inputState):
         if inputState.shape != self.layers[0].shape:
             raise ValueError(
-                f"[ERROR] Feed-forward input's shape is not {self.layers[0].output.shape} but {inputState.shape}")
+                f"[ERROR] Feed-forward input's shape is {inputState.shape}, but got shape {self.layers[0].output.shape}"
+                " in dataset.")
 
         self.layers[0].output = inputState.flatten()
         for i in range(1, len(self.layers)):
             self.layers[i].feedForward()
             #print(i, self.layers[i].weights, self.layers[i].biases)
 
-    def train(self, dataset, epochs=1, mbSize=1):
+    def train(self, dataset, epochs=1, mbSize=1, shuffle=False):
         if mbSize > len(dataset):
             raise ValueError(f"[ERROR] Mini-batch size ({mbSize}) is larger than the dataset's size ({len(dataset)})!")
 
@@ -400,6 +401,9 @@ class AI:
             # print(f"Epoch {epoch + 1}/{epochs}")
 
             loss = 0
+
+            if shuffle:
+                numpy.random.shuffle(dataset)
 
             for batch in range(batchCount):
 
@@ -448,32 +452,32 @@ class AI:
                 print(f"{epoch+1}/{epochs} {loss:.10f}")
 
 
-# words = "Hei jeg heter Nicolai og jeg er veldig kul".split(" ")
-# unique_words = np.unique(words)
-# print(unique_words)
-#
-# exit()
+with open("data.txt", "r") as f:
+    words = f.read().split()
+
+unique_words = np.unique(words)
+print(unique_words)
 
 
 ai = AI(layers=[
-            InputLayer((3,)),
-            # LSTMLayer(5),
-            FFLayer(6, activation="Sigmoid"),
+            InputLayer((len(unique_words),)),
+            LSTMLayer(len(unique_words)),
+            # FFLayer(6, activation="Sigmoid"),
             FFLayer(2, activation="Softmax")
         ],
         loss="CategoricalCrossEntropy",
         optimizer="RMSprop",
-        learningRate=0.001)
+        learningRate=0.01)
 
-dataset = [
-    [
-        [np.array([0, 0, 1]), np.array([0, 1])],
-        #[np.array([4, 1, 2]), np.array([1, 0])]
-    ],
-    # [
-    #     [np.array([5, 2, 1]), np.array([1, 0.0])],
-    #     [np.array([0, 1, 2]), np.array([1, 0.0])]
-    # ],
-]
+# dataset = [
+#     [
+#         [np.array([0, 0, 1]), np.array([0, 1])],
+#         #[np.array([4, 1, 2]), np.array([1, 0])]
+#     ],
+#     # [
+#     #     [np.array([5, 2, 1]), np.array([1, 0.0])],
+#     #     [np.array([0, 1, 2]), np.array([1, 0.0])]
+#     # ],
+# ]
 
-ai.train(dataset, epochs=100000, mbSize=1)
+ai.train(dataset, epochs=2, mbSize=128, shuffle=True)
