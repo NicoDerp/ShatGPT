@@ -146,6 +146,8 @@ class LSTMLayer(Layer):
     def __init__(self, size, activation="Linear"):
         super().__init__("FFLayer", size, activation, 12)
 
+        self.lOutput = np.zeros(size)
+
         self.f1Weights = None
         self.i1Weights = None
         self.c1Weights = None
@@ -201,6 +203,7 @@ class LSTMLayer(Layer):
         self.zo = self.o1Weights.dot(self.states) + self.o2Weights.dot(self.prev.output) + self.oBiases
         self.ot = Sigmoid(self.zo)
 
+        self.lOutput = self.output
         self.output = self.ft * self.output + self.it * self.zg
         self.states = self.ot * np.tanh(self.output)
 
@@ -208,7 +211,7 @@ class LSTMLayer(Layer):
         nGradient = self.next.weights.T.dot(self.next.gradient)
 
         tmp1 = nGradient * np.tanh(self.output) * dSigmoid(self.zo)
-        tmp2 = nGradient * self.ot * dTanH(self.output) * self.output * dSigmoid(self.zf)
+        tmp2 = nGradient * self.ot * dTanH(self.output) * self.lOutput * dSigmoid(self.zf)
         tmp3 = nGradient * self.ot * dTanH(self.output) * self.gt * dSigmoid(self.zi)
         tmp4 = nGradient * self.ot * dTanH(self.output) * self.it * dTanH(self.zg)
 
@@ -305,7 +308,7 @@ class AI:
                 layer.optAttrs["Vt"] = {}
 
         elif self.optimizer == "RMSprop":
-            self.epsilon = 10 ** -8
+            self.epsilon = 10**-8
             self.gamma = 0.9
             self.optimizerFunc = self._rmsprop
 
@@ -390,7 +393,7 @@ class AI:
         self.layers[0].output = inputState.flatten()
         for i in range(1, len(self.layers)):
             self.layers[i].feedForward()
-            #print(i, self.layers[i].weights, self.layers[i].biases)
+            # print(i, self.layers[i].weights, self.layers[i].biases)
 
     def train(self, dataset, epochs=1, mbSize=1, shuffle=False):
         if mbSize > len(dataset):
