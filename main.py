@@ -55,10 +55,10 @@ ai = AI(layers=[
             # FFLayer(6, activation="Sigmoid"),
             FFLayer(len(unique_words), activation="Softmax")
         ],
-        # loss="CategoricalCrossEntropy",
-        loss="MSE",
+        loss="CategoricalCrossEntropy",
+        # loss="MSE",
         optimizer="RMSprop",
-        learningRate=0.01)
+        learningRate=0.001)
 
 # dataset = [
 #     [

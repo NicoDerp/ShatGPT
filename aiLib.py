@@ -52,7 +52,7 @@ def dMSE(actual, pred):
 
 
 def CategoricalCrossEntropy(actual, pred):
-    return -actual * np.log(pred)
+    return -actual * np.log(pred + 10**-8)
 
 
 def dCategoricalCrossEntropy(actual, pred):
