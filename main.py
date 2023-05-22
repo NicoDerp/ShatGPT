@@ -1,5 +1,7 @@
-import numpy
+
 import numpy as np
+import pickle
+from nltk.tokenize import RegexpTokenizer
 
 
 def LinearActivation(x):
@@ -325,6 +327,16 @@ class AI:
 
         self._setupLayers()
 
+    def save(self, fn):
+        with open(fn, "w") as f:
+            f.write(pickle.dumps(self.__dict__))
+
+    @classmethod
+    def load(cls, fn):
+        ai = cls.__new__(cls)
+        with open(fn, "rb") as f:
+            ai.__dict__ = pickle.load(f.read())
+
     def _adam(self, layer, index, gradient):
         if index not in layer.optAttrs["Mt"]:
             layer.optAttrs["Mt"][index] = np.zeros(gradient.shape)
@@ -452,16 +464,39 @@ class AI:
                 print(f"{epoch+1}/{epochs} {loss:.10f}")
 
 
-with open("data.txt", "r") as f:
-    words = f.read().split()
+WORD_LENGTH = 5
+SENTENCE_DEPTH = 5
 
+with open("data.txt", "r") as f:
+    text = f.read().lower()
+
+tokenizer = RegexpTokenizer(r'\w+')
+words = tokenizer.tokenize(text)
 unique_words = np.unique(words)
-print(unique_words)
+unique_word_index = dict((c, i) for i, c in enumerate(unique_words))
+# print(words)
+# print(unique_words)
+
+dataset = []
+
+# for i in range(len(words) - SENTENCE_DEPTH):
+#     dataset.append()
+
+next_word = []
+prev_words = []
+for j in range(len(words) - SENTENCE_DEPTH):
+    prev_words.append(words[j:j + SENTENCE_DEPTH])
+    next_word.append(words[j + SENTENCE_DEPTH])
+print(prev_words[1])
+print(next_word[1])
+
+
+exit()
 
 
 ai = AI(layers=[
-            InputLayer((len(unique_words),)),
-            LSTMLayer(len(unique_words)),
+            InputLayer((WORD_LENGTH,)),
+            LSTMLayer(WORD_LENGTH),
             # FFLayer(6, activation="Sigmoid"),
             FFLayer(2, activation="Softmax")
         ],
@@ -481,3 +516,5 @@ ai = AI(layers=[
 # ]
 
 ai.train(dataset, epochs=2, mbSize=128, shuffle=True)
+
+ai.save("shatgpt.model")
