@@ -72,7 +72,7 @@ ai = AI(layers=[
 #     # ],
 # ]
 
-ai.train(dataset, epochs=100, mbSize=32, shuffle=True)
+ai.train(dataset, epochs=10, mbSize=32, shuffle=True)
 
 ai.save("shatgpt.model")
 
