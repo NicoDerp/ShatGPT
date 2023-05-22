@@ -396,11 +396,18 @@ class AI:
                 print(f"{epoch+1}/{epochs} {loss:.10f}")
 
 
+words = "Hei jeg heter Nicolai og jeg er veldig kul".split(" ")
+unique_words = np.unique(words)
+print(unique_words)
+
+exit()
+
+
 ai = AI(layers=[
             InputLayer((3,)),
-            # LSTMLayer(5),
-            FFLayer(5, activation="Sigmoid"),
-            FFLayer(2, activation="ReLU")
+            LSTMLayer(5),
+            #FFLayer(5, activation="Sigmoid"),
+            FFLayer(2, activation="Softmax")
         ],
         optimizer="None",
         learningRate=0.001)
