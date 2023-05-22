@@ -23,6 +23,11 @@ def Softmax(x):
     return e / np.sum(e)
 
 
+def dSoftmax(x):
+    e = np.exp(x - np.max(x))
+    return (e / np.sum(e)) * (1 - e / np.sum(e))
+
+
 def Sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
@@ -34,6 +39,22 @@ def dSigmoid(x):
 
 def dTanH(x):
     return 1 - np.tanh(x) ** 2
+
+
+def MSE(actual, pred):
+    return (actual - pred)**2
+
+
+def dMSE(actual, pred):
+    return pred - actual
+
+
+def CategoricalCrossEntropy(actual, pred):
+    return -actual * np.log(pred)
+
+
+def dCategoricalCrossEntropy(actual, pred):
+    return -actual / (pred + 10**-8)
 
 
 class Layer:
@@ -63,7 +84,7 @@ class Layer:
             self.dActivation = dSigmoid
         elif activation == "Softmax":
             self.activation = Softmax
-            self.dActivation = NotImplementedError
+            self.dActivation = dSoftmax
         else:
             raise ValueError("[ERROR] Unknown activation function")
 
@@ -253,10 +274,23 @@ class LSTMLayer(Layer):
 
 
 class AI:
-    def __init__(self, layers, optimizer="Adam", learningRate=0.0006):
+    def __init__(self, layers, loss="MSE", optimizer="Adam", learningRate=0.0006):
         self.layers = layers
+        self.loss = loss
         self.optimizer = optimizer
         self.learningRate = learningRate
+
+        if self.loss == "MSE":
+            self.lossFunction = MSE
+            self.dLossFunction = dMSE
+
+        elif self.loss == "CategoricalCrossEntropy":
+            self.lossFunction = CategoricalCrossEntropy
+            self.dLossFunction = dCategoricalCrossEntropy
+
+        else:
+            raise ValueError(f"[ERROR] Invalid loss function passed. You passed '{self.loss}'"
+                             f", while only 'MSE' and 'CrossEntropy' are allowed.")
 
         if self.optimizer == "Adam":
             self.B1 = 0.9
@@ -365,10 +399,11 @@ class AI:
                     for inputState, actual in sentence:
                         self.feedForward(inputState)
 
-                        loss += np.mean((actual - self.layers[-1].output) ** 2)
+                        # loss += np.mean((actual - self.layers[-1].output) ** 2)
+                        loss += np.mean(self.lossFunction(actual, self.layers[-1].output))
 
                         # lossDerivative = (2 / len(self.layers)) * (self.layers[-1].output - actual)
-                        lossDerivative = self.layers[-1].output - actual
+                        lossDerivative = self.dLossFunction(actual, self.layers[-1].output)
                         # errorL = lossDerivative * self.layers[-1].dActivation(self.layers[-1].zNeurons)
                         errorL = lossDerivative * self.layers[-1].dOutput
 
@@ -396,25 +431,26 @@ class AI:
                 print(f"{epoch+1}/{epochs} {loss:.10f}")
 
 
-words = "Hei jeg heter Nicolai og jeg er veldig kul".split(" ")
-unique_words = np.unique(words)
-print(unique_words)
-
-exit()
+# words = "Hei jeg heter Nicolai og jeg er veldig kul".split(" ")
+# unique_words = np.unique(words)
+# print(unique_words)
+#
+# exit()
 
 
 ai = AI(layers=[
             InputLayer((3,)),
-            LSTMLayer(5),
-            #FFLayer(5, activation="Sigmoid"),
+            # LSTMLayer(5),
+            FFLayer(6, activation="Sigmoid"),
             FFLayer(2, activation="Softmax")
         ],
-        optimizer="None",
+        loss="MSE",
+        optimizer="Adam",
         learningRate=0.001)
 
 dataset = [
     [
-        [np.array([0, 0, 1]), np.array([0, 0.5])],
+        [np.array([0, 0, 1]), np.array([0, 1])],
         #[np.array([4, 1, 2]), np.array([1, 0])]
     ],
     # [
@@ -423,4 +459,4 @@ dataset = [
     # ],
 ]
 
-ai.train(dataset, epochs=10000, mbSize=1)
+ai.train(dataset, epochs=100000, mbSize=1)
