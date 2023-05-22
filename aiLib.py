@@ -208,7 +208,8 @@ class LSTMLayer(Layer):
         self.states = self.ot * np.tanh(self.output)
 
     def calculateGradient(self):
-        nGradient = self.next.weights.T.dot(self.next.gradient)
+        # nGradient = self.next.weights.T.dot(self.next.gradient)
+        nGradient = self.next.weights.T.dot(self.next.gradient) * self.dOutput
 
         tmp1 = nGradient * np.tanh(self.output) * dSigmoid(self.zo)
         tmp2 = nGradient * self.ot * dTanH(self.output) * self.lOutput * dSigmoid(self.zf)
