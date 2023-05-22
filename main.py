@@ -55,7 +55,8 @@ ai = AI(layers=[
             # FFLayer(6, activation="Sigmoid"),
             FFLayer(len(unique_words), activation="Softmax")
         ],
-        loss="CategoricalCrossEntropy",
+        # loss="CategoricalCrossEntropy",
+        loss="MSE",
         optimizer="RMSprop",
         learningRate=0.01)
 
@@ -70,7 +71,7 @@ ai = AI(layers=[
 #     # ],
 # ]
 
-ai.train(dataset, epochs=2, mbSize=128, shuffle=True)
+ai.train(dataset, epochs=10, mbSize=128, shuffle=True)
 
 ai.save("shatgpt.model")
 

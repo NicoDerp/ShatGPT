@@ -1,6 +1,7 @@
 
 import numpy as np
 import pickle
+import matplotlib.pyplot as plt
 
 
 def LinearActivation(x):
@@ -408,6 +409,8 @@ class AI:
         print(f""" - {self.learningRate} learning rate
  - '{self.optimizer}' optimization technique""")
 
+        losses = []
+
         # For each epoch
         for epoch in range(epochs):
             # print(f"Epoch {epoch + 1}/{epochs}")
@@ -459,10 +462,18 @@ class AI:
                     print(f"Done at epoch {epoch+1}/{epochs} with loss {loss:.10f}")
                     return
 
-                if batch % 1 == 0:
+                if batch % 2 == 0:
                     # loss = loss / sum([len(d) for d in dataset])
                     print(f"Batch {batch + 1}/{batchCount} {loss:.10f}")
 
-            if epoch % 10 == 0:
+            if epoch % 1 == 0:
                 # loss = loss / sum([len(d) for d in dataset])
                 print(f"Epoch {epoch+1}/{epochs} {loss:.10f}")
+
+            losses.append(loss / batchCount)
+
+        plt.plot(np.arange(0, epochs), losses)
+        plt.title("ShatGPT stats")
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
+        plt.show()
