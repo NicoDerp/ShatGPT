@@ -327,10 +327,29 @@ class AI:
             self.layers[i].feedForward()
             #print(i, self.layers[i].weights, self.layers[i].biases)
 
-    def train(self, dataset, epochs=1):
+    def train(self, dataset, epochs=1, mbSize=1):
+        if mbSize > len(dataset):
+            raise ValueError(f"[ERROR] Mini-batch size ({mbSize}) is larger than the dataset's size ({len(dataset)})!")
+
+        batchCount = int(np.ceil(len(dataset) / mbSize))
+
+        print(f"""Training AI with parameters:
+ - {epochs} epoch(s)
+ - {batchCount} batch(es)
+ - {mbSize} sample(s) per batch""")
+
+        if len(dataset) % mbSize != 0:
+            print(f" - {len(dataset) % mbSize} sample(s) for last batch")
+
+        print(f""" - {self.learningRate} learning rate
+ - '{self.optimizer}' optimization technique""")
+
         # For each epoch
         for epoch in range(epochs):
             # print(f"Epoch {epoch + 1}/{epochs}")
+
+            for batch in range(1):
+                exit(0)
 
             loss = 0
 
@@ -387,12 +406,12 @@ ai = AI(layers=[
 dataset = [
     [
         [np.array([0, 0, 1]), np.array([0, 0.5])],
-        # [np.array([4, 1, 2]), np.array([1, 0])]
+        #[np.array([4, 1, 2]), np.array([1, 0])]
     ],
     # [
     #     [np.array([5, 2, 1]), np.array([1, 0.0])],
     #     [np.array([0, 1, 2]), np.array([1, 0.0])]
-    # ]
+    # ],
 ]
 
-ai.train(dataset, epochs=10000)
+ai.train(dataset, epochs=10000, mbSize=1)
