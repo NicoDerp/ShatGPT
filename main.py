@@ -348,48 +348,50 @@ class AI:
         for epoch in range(epochs):
             # print(f"Epoch {epoch + 1}/{epochs}")
 
-            for batch in range(1):
-                exit(0)
-
             loss = 0
 
-            # For each sentence
-            for sentence in dataset:
+            for batch in range(batchCount):
+
+                samples = dataset[batch*mbSize:min((batch+1)*mbSize, len(dataset))]
+                batchSize = len(samples)
+
+                # For each sentence
+                for sentence in samples:
+
+                    for layer in self.layers:
+                        layer.reset()
+
+                    # For each word / timestep
+                    for inputState, actual in sentence:
+                        self.feedForward(inputState)
+
+                        loss += np.mean((actual - self.layers[-1].output) ** 2)
+
+                        # lossDerivative = (2 / len(self.layers)) * (self.layers[-1].output - actual)
+                        lossDerivative = self.layers[-1].output - actual
+                        # errorL = lossDerivative * self.layers[-1].dActivation(self.layers[-1].zNeurons)
+                        errorL = lossDerivative * self.layers[-1].dOutput
+
+                        self.layers[-1].gradient = errorL
+
+                        # L-1 .. 0
+                        for i in range(len(self.layers) - 2, 0, -1):
+                            layer = self.layers[i]
+                            layer.calculateGradient()
+
+                        # self.layers[-2].weights -= 0.001 * errorL * self.layers[-2].neurons
+
+                    # Sum gradients for each layer
+                    # gradients = np.sum(gradients, axis=0)
 
                 for layer in self.layers:
-                    layer.reset()
+                    layer.updateParameters(batchSize)
 
-                # For each word / timestep
-                for inputState, actual in sentence:
-                    self.feedForward(inputState)
+                if loss < 0.0000001:
+                    print(f"Done at epoch {epoch+1}/{epochs} with loss {loss:.10f}")
+                    return
 
-                    loss += np.mean((actual - self.layers[-1].output) ** 2)
-
-                    # lossDerivative = (2 / len(self.layers)) * (self.layers[-1].output - actual)
-                    lossDerivative = self.layers[-1].output - actual
-                    # errorL = lossDerivative * self.layers[-1].dActivation(self.layers[-1].zNeurons)
-                    errorL = lossDerivative * self.layers[-1].dOutput
-
-                    self.layers[-1].gradient = errorL
-
-                    # L-1 .. 0
-                    for i in range(len(self.layers) - 2, 0, -1):
-                        layer = self.layers[i]
-                        layer.calculateGradient()
-
-                    # self.layers[-2].weights -= 0.001 * errorL * self.layers[-2].neurons
-
-                # Sum gradients for each layer
-                # gradients = np.sum(gradients, axis=0)
-
-            for layer in self.layers:
-                layer.updateParameters(sum([len(d) for d in dataset]))
-
-            if loss < 0.0000001:
-                print(f"Done at epoch {epoch+1}/{epochs} with loss {loss:.10f}")
-                return
-
-            if epoch % 100 == 0:
+            if epoch % 10 == 0:
                 # loss = loss / sum([len(d) for d in dataset])
                 print(f"{epoch+1}/{epochs} {loss:.10f}")
 
@@ -400,7 +402,7 @@ ai = AI(layers=[
             FFLayer(5, activation="Sigmoid"),
             FFLayer(2, activation="ReLU")
         ],
-        optimizer="Adam",
+        optimizer="None",
         learningRate=0.001)
 
 dataset = [
