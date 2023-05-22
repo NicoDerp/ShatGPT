@@ -37,7 +37,7 @@ def dTanH(x):
 
 
 class Layer:
-    def __init__(self, layerType, size, activation):
+    def __init__(self, layerType, size, activation, gradientCount):
         self.layerType = layerType
         self.size = size
         self.output = np.zeros(size)
@@ -46,6 +46,7 @@ class Layer:
         self.prev = None
         self.next = None
         self.optimizerFunc = None
+        self.gradientCount = gradientCount
         self.optAttrs = {}
 
         if activation == "Linear":
@@ -78,20 +79,21 @@ class Layer:
     def reset(self):
         pass
 
-    def setup_(self, prev, nextL):
+    def setup_(self, prev, nextL, optimizerFunc):
         self.prev = prev
         self.next = nextL
+        self.optimizerFunc = optimizerFunc
 
 
 class InputLayer(Layer):
     def __init__(self, shape):
-        super().__init__("InputLayer", np.prod(shape), "Linear")
+        super().__init__("InputLayer", np.prod(shape), "Linear", 0)
         self.shape = shape
 
 
 class FFLayer(Layer):
     def __init__(self, size, activation="Linear"):
-        super().__init__("FFLayer", size, activation)
+        super().__init__("FFLayer", size, activation, 2)
 
         self.weights = None
         self.biases = np.zeros(self.size)
@@ -108,8 +110,8 @@ class FFLayer(Layer):
     def updateParameters(self, n):
         # Average the gradients
         self.gradient /= n
-        self.weights -= self.optimizerFunc(0, self.gradient.dot(self.output[np.newaxis].T))
-        self.biases -= self.optimizerFunc(1, self.gradient)
+        self.weights -= self.optimizerFunc(self, 0, self.gradient.dot(self.output[np.newaxis].T))
+        self.biases -= self.optimizerFunc(self, 1, self.gradient)
 
     def setup_(self, prev, nextL, optimizerFunc):
         super().setup_(prev, nextL, optimizerFunc)
@@ -119,7 +121,7 @@ class FFLayer(Layer):
 
 class LSTMLayer(Layer):
     def __init__(self, size, activation="Linear"):
-        super().__init__("FFLayer", size, activation)
+        super().__init__("FFLayer", size, activation, 12)
 
         self.f1Weights = None
         self.i1Weights = None
@@ -231,7 +233,7 @@ class LSTMLayer(Layer):
 
         self.o1Weights -= self.optimizerFunc(9, self.o1WeightsGr)
         self.o2Weights -= self.optimizerFunc(10, self.o2WeightsGr)
-        self.oBiases -= self.optimizerFunc(10, self.oBiasesGr)
+        self.oBiases -= self.optimizerFunc(11, self.oBiasesGr)
 
     def reset(self):
         self.states = np.zeros(self.size)
@@ -252,48 +254,68 @@ class LSTMLayer(Layer):
 
 class AI:
     def __init__(self, layers, optimizer="Adam", learningRate=0.0006):
-        self.learningRate = learningRate
+        self.layers = layers
         self.optimizer = optimizer
+        self.learningRate = learningRate
 
         if self.optimizer == "Adam":
             self.B1 = 0.9
             self.B2 = 0.999
             self.epsilon = 10**-8
-            self.Mt = np.zeros(0)
             self.optimizerFunc = self._adam
+
+            for layer in self.layers:
+                layer.optAttrs["Mt"] = {}
+                layer.optAttrs["Vt"] = {}
+
         elif self.optimizer == "Momentum":
             self.optimizerFunc = self._momentum
-            self.vt = 0
+            for layer in self.layers:
+                layer.optAttrs["vt"] = {}
+
         elif self.optimizer == "None":
             self.optimizerFunc = self._none
         else:
             raise ValueError(f"[ERROR] Invalid optimizer passed. You passed '{self.optimizer}'"
                              f", while only 'Adam', 'Momentum' and 'None' are allowed.")
 
-        self.layers = layers
-        self._setupLayers(self.optimizerFunc)
+        self._setupLayers()
 
     def _adam(self, layer, index, gradient):
-        pass
+        if index not in layer.optAttrs["Mt"]:
+            layer.optAttrs["Mt"][index] = np.zeros(gradient.shape)
+            layer.optAttrs["Vt"][index] = np.zeros(gradient.shape)
+
+        layer.optAttrs["Mt"][index] = self.B1*layer.optAttrs["Mt"][index] + (1 - self.B1) * gradient
+        layer.optAttrs["Vt"][index] = self.B2*layer.optAttrs["Vt"][index] + (1 - self.B2) * gradient**2
+
+        Mht = layer.optAttrs["Mt"][index] / (1 - self.B1)
+        Vht = layer.optAttrs["Vt"][index] / (1 - self.B2)
+
+        Ms = (self.learningRate / (np.sqrt(Vht) + self.epsilon)) * Mht
+        return Ms
 
     def _momentum(self, layer, index, gradient):
-        layer.optAttrs[index] = 0.9*layer.optAttrs[index] + self.learningRate*gradient
-        return self.vt
+        if index not in layer.optAttrs["vt"]:
+            layer.optAttrs["vt"][index] = np.zeros(gradient.shape)
+
+        layer.optAttrs["vt"][index] = 0.9*layer.optAttrs["vt"][index] + self.learningRate*gradient
+        return layer.optAttrs["vt"][index]
 
     def _none(self, layer, index, gradient):
         return self.learningRate * gradient
 
-    def _setupLayers(self, optimizerFunc):
+    def _setupLayers(self):
         if len(self.layers) < 3:
             raise ValueError(f"[ERROR] At least 3 layers are required")
 
         if self.layers[0].layerType != "InputLayer":
             raise ValueError(f"[ERROR] First layer isn't InputLayer")
 
-        self.layers[0].setup_(None, self.layers[1], optimizerFunc)
+        self.layers[0].setup_(None, self.layers[1], self.optimizerFunc)
         for i in range(1, len(self.layers) - 1):
-            self.layers[i].setup_(self.layers[i - 1], self.layers[i + 1], optimizerFunc)
-        self.layers[-1].setup_(self.layers[-2], None, optimizerFunc)
+            self.layers[i].setup_(self.layers[i - 1], self.layers[i + 1], self.optimizerFunc)
+        self.layers[-1].setup_(self.layers[-2], None, self.optimizerFunc)
 
     def feedForward(self, inputState):
         if inputState.shape != self.layers[0].shape:
@@ -303,6 +325,7 @@ class AI:
         self.layers[0].output = inputState.flatten()
         for i in range(1, len(self.layers)):
             self.layers[i].feedForward()
+            #print(i, self.layers[i].weights, self.layers[i].biases)
 
     def train(self, dataset, epochs=1):
         # For each epoch
@@ -358,17 +381,8 @@ ai = AI(layers=[
             FFLayer(5, activation="Sigmoid"),
             FFLayer(2, activation="ReLU")
         ],
-        optimizer="Momentum",
-        learningRate=0.01)
-
-# ai.feedForward(np.ones(ai.layers[0].size))
-# for layer in ai.layers:
-#     if layer.layerType == "LSTMLayer":
-#         print(layer.states)
-#         print(layer.output)
-#     else:
-#         print(layer.output)
-#     print()
+        optimizer="Adam",
+        learningRate=0.001)
 
 dataset = [
     [
@@ -381,7 +395,4 @@ dataset = [
     # ]
 ]
 
-ai.train(dataset, epochs=100000)
-
-# print(a.neurons)
-# print(a.weights.dot(a.neurons))
+ai.train(dataset, epochs=10000)
