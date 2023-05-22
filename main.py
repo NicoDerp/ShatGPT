@@ -290,7 +290,7 @@ class AI:
 
         else:
             raise ValueError(f"[ERROR] Invalid loss function passed. You passed '{self.loss}'"
-                             f", while only 'MSE' and 'CrossEntropy' are allowed.")
+                             f", while only 'MSE' and 'CategoricalCrossEntropy' are allowed.")
 
         if self.optimizer == "Adam":
             self.B1 = 0.9
@@ -302,16 +302,26 @@ class AI:
                 layer.optAttrs["Mt"] = {}
                 layer.optAttrs["Vt"] = {}
 
+        elif self.optimizer == "RMSprop":
+            self.epsilon = 10 ** -8
+            self.gamma = 0.9
+            self.optimizerFunc = self._rmsprop
+
+            for layer in self.layers:
+                layer.optAttrs["Eg2t"] = {}
+
         elif self.optimizer == "Momentum":
             self.optimizerFunc = self._momentum
+            self.gamma = 0.9
             for layer in self.layers:
                 layer.optAttrs["vt"] = {}
 
         elif self.optimizer == "None":
             self.optimizerFunc = self._none
+
         else:
             raise ValueError(f"[ERROR] Invalid optimizer passed. You passed '{self.optimizer}'"
-                             f", while only 'Adam', 'Momentum' and 'None' are allowed.")
+                             f", while only 'Adam', 'RMSprop', 'Momentum' and 'None' are allowed.")
 
         self._setupLayers()
 
@@ -329,11 +339,18 @@ class AI:
         Ms = (self.learningRate / (np.sqrt(Vht) + self.epsilon)) * Mht
         return Ms
 
+    def _rmsprop(self, layer, index, gradient):
+        if index not in layer.optAttrs["Eg2t"]:
+            layer.optAttrs["Eg2t"][index] = np.zeros(gradient.shape)
+
+        layer.optAttrs["Eg2t"][index] = self.gamma*layer.optAttrs["Eg2t"][index] + 0.1*gradient**2
+        return gradient * self.learningRate / np.sqrt(layer.optAttrs["Eg2t"][index] + self.epsilon)
+
     def _momentum(self, layer, index, gradient):
         if index not in layer.optAttrs["vt"]:
             layer.optAttrs["vt"][index] = np.zeros(gradient.shape)
 
-        layer.optAttrs["vt"][index] = 0.9*layer.optAttrs["vt"][index] + self.learningRate*gradient
+        layer.optAttrs["vt"][index] = self.gamma*layer.optAttrs["vt"][index] + self.learningRate*gradient
         return layer.optAttrs["vt"][index]
 
     def _none(self, layer, index, gradient):
@@ -444,8 +461,8 @@ ai = AI(layers=[
             FFLayer(6, activation="Sigmoid"),
             FFLayer(2, activation="Softmax")
         ],
-        loss="MSE",
-        optimizer="Adam",
+        loss="CategoricalCrossEntropy",
+        optimizer="RMSprop",
         learningRate=0.001)
 
 dataset = [
