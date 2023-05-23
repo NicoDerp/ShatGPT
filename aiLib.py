@@ -114,6 +114,8 @@ class Layer:
         self.next = nextL
         self.optimizerFunc = optimizerFunc
 
+        self.reset()
+
 
 class InputLayer(Layer):
     def __init__(self, shape):
@@ -257,21 +259,21 @@ class LSTMLayer(Layer):
         # Normal transpose
         # self.prev.output.T
 
-        self.f1WeightsGr = np.dot(gfr, states.T)
-        self.f2WeightsGr = np.dot(gfr, prevOutput.T)
-        self.fBiasesGr = gf
+        self.f1WeightsGr += np.dot(gfr, states.T)
+        self.f2WeightsGr += np.dot(gfr, prevOutput.T)
+        self.fBiasesGr += gf
 
-        self.i1WeightsGr = np.dot(gir, states.T)
-        self.i2WeightsGr = np.dot(gir, prevOutput.T)
-        self.iBiasesGr = gi
+        self.i1WeightsGr += np.dot(gir, states.T)
+        self.i2WeightsGr += np.dot(gir, prevOutput.T)
+        self.iBiasesGr += gi
 
-        self.c1WeightsGr = np.dot(gcr, states.T)
-        self.c2WeightsGr = np.dot(gcr, prevOutput.T)
-        self.cBiasesGr = gc
+        self.c1WeightsGr += np.dot(gcr, states.T)
+        self.c2WeightsGr += np.dot(gcr, prevOutput.T)
+        self.cBiasesGr += gc
 
-        self.o1WeightsGr = np.dot(gor, states.T)
-        self.o2WeightsGr = np.dot(gor, prevOutput.T)
-        self.oBiasesGr = go
+        self.o1WeightsGr += np.dot(gor, states.T)
+        self.o2WeightsGr += np.dot(gor, prevOutput.T)
+        self.oBiasesGr += go
 
     def updateParameters(self, n):
         self.f1Weights -= self.optimizerFunc(self, 0, self.f1WeightsGr)
@@ -292,6 +294,22 @@ class LSTMLayer(Layer):
 
     def reset(self):
         self.states = np.zeros(self.size)
+
+        self.f1WeightsGr = np.zeros((self.size, self.size))
+        self.f2WeightsGr = np.zeros((self.size, self.prev.size))
+        self.fBiasesGr = np.zeros(self.size)
+
+        self.i1WeightsGr = np.zeros((self.size, self.size))
+        self.i2WeightsGr = np.zeros((self.size, self.prev.size))
+        self.iBiasesGr = np.zeros(self.size)
+
+        self.c1WeightsGr = np.zeros((self.size, self.size))
+        self.c2WeightsGr = np.zeros((self.size, self.prev.size))
+        self.cBiasesGr = np.zeros(self.size)
+
+        self.o1WeightsGr = np.zeros((self.size, self.size))
+        self.o2WeightsGr = np.zeros((self.size, self.prev.size))
+        self.oBiasesGr = np.zeros(self.size)
 
     def setup_(self, prev, nextL, optimizerFunc):
         super().setup_(prev, nextL, optimizerFunc)

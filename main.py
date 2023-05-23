@@ -53,10 +53,9 @@ for prevs, cur in zip(X, Y):
 
 ai = AI(layers=[
             InputLayer((len(unique_words),)),
-            # LSTMLayer(len(unique_words)),
-            FFLayer(30, activation="ReLU"),
+            LSTMLayer(len(unique_words)),
             # FFLayer(30, activation="ReLU"),
-            # FFLayer(60, activation="Sigmoid"),
+            # FFLayer(30, activation="ReLU"),
             FFLayer(len(unique_words), activation="Softmax")
         ],
         # loss="CategoricalCrossEntropy",
