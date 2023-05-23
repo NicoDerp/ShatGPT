@@ -26,9 +26,18 @@ def Softmax(x):
 
 
 def dSoftmax(x):
+    #print("Start", x.shape)
     e = np.exp(x - np.max(x))
-    return (e / np.sum(e)) * (1 - e / np.sum(e))
+    a = (e / np.sum(e)) * (1 - e / np.sum(e))
+    #print("Out", a.shape)
+    return a
 
+#def dSoftmax(x):
+#    print("Start", x.shape)
+#    SM = x.reshape((-1,1))
+#    jac = np.diagflat(x) - np.dot(SM, SM.T)
+#    print("Out", jac.shape)
+#    return jac
 
 def Sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -147,6 +156,7 @@ class LSTMLayer(Layer):
         super().__init__("FFLayer", size, activation, 12)
 
         self.lOutput = np.zeros(size)
+        self.lStates = np.zeros(size)
 
         self.f1Weights = None
         self.i1Weights = None
@@ -204,22 +214,42 @@ class LSTMLayer(Layer):
         self.ot = Sigmoid(self.zo)
 
         self.lOutput = self.output
+        self.lStates = self.states
         self.output = self.ft * self.output + self.it * self.gt
         self.states = self.ot * np.tanh(self.output)
 
     def calculateGradient(self):
-        # nGradient = self.next.weights.T.dot(self.next.gradient)
-        nGradient = self.next.weights.T.dot(self.next.gradient) * self.dOutput
+        nGradient = self.next.weights.T.dot(self.next.gradient)
+        # nGradient = self.next.weights.T.dot(self.next.gradient) * self.dOutput
 
-        tmp1 = nGradient * np.tanh(self.output) * dSigmoid(self.zo)
-        tmp2 = nGradient * self.ot * dTanH(self.output) * self.lOutput * dSigmoid(self.zf)
-        tmp3 = nGradient * self.ot * dTanH(self.output) * self.gt * dSigmoid(self.zi)
-        tmp4 = nGradient * self.ot * dTanH(self.output) * self.it * dTanH(self.zg)
+        # Output
+        go = nGradient * np.tanh(self.output) * dSigmoid(self.zo)
+        
+        # Forget
+        gf = nGradient * self.ot * dTanH(self.output) * self.lOutput * dSigmoid(self.zf)
+        
+        # Input
+        gi = nGradient * self.ot * dTanH(self.output) * self.gt * dSigmoid(self.zi)
+        
+        # C
+        gc = nGradient * self.ot * dTanH(self.output) * self.it * dTanH(self.zg)
+        
+        # Forget
+        #tmp1 = nGradient * self.ot * dTanh(self.output) * self.lStates * dSigmoid(self.ft)
+        
+        # Input
+        #tmp2 = nGradient * self.ot * dTanH(self.output) * self.gt * dSigmoid(self.it)
+        
+        # Output
+        #tmp3 = nGradient * dTanH(self.output) * dSigmoid(self.ot)
+        
+        #
+        #tmp4 = nGradient * self.ot * dTanH(self.output) * self.it * dTanH(self.zg)
 
-        tmp1r = tmp1.reshape((-1, 1))
-        tmp2r = tmp2.reshape((-1, 1))
-        tmp3r = tmp3.reshape((-1, 1))
-        tmp4r = tmp4.reshape((-1, 1))
+        gor = go.reshape((-1, 1))
+        gfr = gf.reshape((-1, 1))
+        gir = gi.reshape((-1, 1))
+        gcr = gc.reshape((-1, 1))
 
         prevOutput = self.prev.output.reshape((-1, 1))
         states = self.states.reshape((-1, 1))
@@ -229,21 +259,24 @@ class LSTMLayer(Layer):
         # Normal transpose
         # self.prev.output.T
 
-        self.f1WeightsGr = np.dot(tmp1r, states.T)
-        self.f2WeightsGr = np.dot(tmp1r, prevOutput.T)
-        self.fBiasesGr = tmp1
+        self.f1WeightsGr = np.dot(gfr, states.T)
+        self.f2WeightsGr = np.dot(gfr, prevOutput.T)
+        self.fBiasesGr = gfr
+        
+        print(self.fBiasesGr.shape)
+        print(self.fBiasesGr.shape)
 
-        self.i1WeightsGr = np.dot(tmp2r, states.T)
-        self.i2WeightsGr = np.dot(tmp2r, prevOutput.T)
-        self.iBiasesGr = tmp2
+        self.i1WeightsGr = np.dot(gir, states.T)
+        self.i2WeightsGr = np.dot(gir, prevOutput.T)
+        self.iBiasesGr = gir
 
-        self.c1WeightsGr = np.dot(tmp3r, states.T)
-        self.c2WeightsGr = np.dot(tmp3r, prevOutput.T)
-        self.cBiasesGr = tmp3
+        self.c1WeightsGr = np.dot(gcr, states.T)
+        self.c2WeightsGr = np.dot(gcr, prevOutput.T)
+        self.cBiasesGr = gcr
 
-        self.o1WeightsGr = np.dot(tmp4r, states.T)
-        self.o2WeightsGr = np.dot(tmp4r, prevOutput.T)
-        self.oBiasesGr = tmp4
+        self.o1WeightsGr = np.dot(gor, states.T)
+        self.o2WeightsGr = np.dot(gor, prevOutput.T)
+        self.oBiasesGr = gor
 
     def updateParameters(self, n):
         self.f1Weights -= self.optimizerFunc(self, 0, self.f1WeightsGr)
@@ -412,6 +445,7 @@ class AI:
 
         print(f""" - {self.learningRate} learning rate
  - '{self.optimizer}' optimization technique""")
+         #"""
 
         losses = []
 
