@@ -59,8 +59,8 @@ ai = AI(layers=[
             # FFLayer(30, activation="ReLU"),
             FFLayer(len(unique_words), activation="Softmax")
         ],
-        # loss="CategoricalCrossEntropy",
-        loss="MSE",
+        loss="CategoricalCrossEntropy",
+        # loss="MSE",
         optimizer="RMSprop",
         # optimizer="Adam",
         learningRate=0.001)

@@ -228,27 +228,27 @@ class LSTMLayer(Layer):
 
         # Output
         go = nGradient * np.tanh(self.output) * dSigmoid(self.zo)
-        
+
         # Forget
         gf = nGradient * self.ot * dTanH(self.output) * self.lOutput * dSigmoid(self.zf)
-        
+
         # Input
         gi = nGradient * self.ot * dTanH(self.output) * self.gt * dSigmoid(self.zi)
-        
+
         # C
         gc = nGradient * self.ot * dTanH(self.output) * self.it * dTanH(self.zg)
-        
+
         # Forget
-        #tmp1 = nGradient * self.ot * dTanh(self.output) * self.lStates * dSigmoid(self.ft)
-        
+        # tmp1 = nGradient * self.ot * dTanh(self.output) * self.lStates * dSigmoid(self.ft)
+
         # Input
-        #tmp2 = nGradient * self.ot * dTanH(self.output) * self.gt * dSigmoid(self.it)
-        
+        # tmp2 = nGradient * self.ot * dTanH(self.output) * self.gt * dSigmoid(self.it)
+
         # Output
-        #tmp3 = nGradient * dTanH(self.output) * dSigmoid(self.ot)
-        
-        #
-        #tmp4 = nGradient * self.ot * dTanH(self.output) * self.it * dTanH(self.zg)
+        # tmp3 = nGradient * dTanH(self.output) * dSigmoid(self.ot)
+
+        # C
+        # tmp4 = nGradient * self.ot * dTanH(self.output) * self.it * dTanH(self.zg)
 
         gor = go.reshape((-1, 1))
         gfr = gf.reshape((-1, 1))
@@ -297,7 +297,11 @@ class LSTMLayer(Layer):
         self.oBiases -= self.optimizerFunc(self, 11, self.oBiasesGr)
 
     def reset(self):
+        self.output = np.zeros(self.size)
         self.states = np.zeros(self.size)
+
+        self.lOutput = np.zeros(self.size)
+        self.lStates = np.zeros(self.size)
 
         self.f1WeightsGr = np.zeros((self.size, self.size))
         self.f2WeightsGr = np.zeros((self.size, self.prev.size))
