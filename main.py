@@ -17,6 +17,7 @@ words = words[:10]
 
 unique_words = np.unique(words)
 unique_word_index = dict((c, i) for i, c in enumerate(unique_words))
+unique_word_index_reverse = dict((i, c) for i, c in enumerate(unique_words))
 # print(words)
 # print(unique_words)
 
@@ -60,8 +61,8 @@ ai = AI(layers=[
         ],
         # loss="CategoricalCrossEntropy",
         loss="MSE",
-        # optimizer="RMSprop",
-        optimizer="Adam",
+        optimizer="RMSprop",
+        # optimizer="Adam",
         learningRate=0.001)
 
 # dataset = [
@@ -75,8 +76,26 @@ ai = AI(layers=[
 #     # ],
 # ]
 
-ai.train(dataset, epochs=2000, mbSize=4, shuffle=True)
+ai.train(dataset, epochs=460, mbSize=4, shuffle=True)
 
 ai.save("shatgpt.model")
 
+
+encoded = []
+testWords = words[0:5]
+print("Testing", testWords)
+
+for w in testWords:
+    enc = np.zeros(len(unique_words))
+    enc[unique_word_index[w]] = 1
+    encoded.append(enc)
+
+ai.clean()
+for w in encoded:
+    ai.feedForward(w)
+
+prediction = ai.layers[-1].output
+predIndex = np.argmax(prediction).astype(int)
+predWord = unique_word_index_reverse[predIndex]
+print(f"AI predicted word '{predWord}'")
 

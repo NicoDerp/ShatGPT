@@ -60,11 +60,15 @@ def dMSE(actual, pred):
 
 
 def CategoricalCrossEntropy(actual, pred):
-    return -actual * np.log(pred + 10**-8)
+    pred = np.clip(pred, 1e-12, 1.0 - 1e-12)
+    # return -actual * np.log(pred + 10**-8)
+    return -actual * np.log(pred)
 
 
 def dCategoricalCrossEntropy(actual, pred):
-    return -actual / (pred + 10**-8)
+    pred = np.clip(pred, 1e-12, 1.0 - 1e-12)
+    # return -actual / (pred + 10**-8)
+    return -actual / pred
 
 
 class Layer:
@@ -442,6 +446,10 @@ class AI:
             self.layers[i].feedForward()
             # print(i, self.layers[i].weights, self.layers[i].biases)
 
+    def clean(self):
+        for layer in self.layers:
+            layer.reset()
+
     def train(self, dataset, epochs=1, mbSize=1, shuffle=False):
         if mbSize > len(dataset):
             raise ValueError(f"[ERROR] Mini-batch size ({mbSize}) is larger than the dataset's size ({len(dataset)})!")
@@ -484,8 +492,7 @@ class AI:
                 # For each sentence
                 for sentence in samples:
 
-                    for layer in self.layers:
-                        layer.reset()
+                    self.clean()
 
                     # For each word / timestep
                     for inputState, actual in sentence:
@@ -496,11 +503,11 @@ class AI:
 
                         predictedIndex = np.argmax(self.layers[-1].output)
                         actualIndex = np.argmax(actual)
-                        print(predictedIndex)
-                        print(actual, actualIndex)
+                        # print(predictedIndex)
+                        # print(actual, actualIndex)
                         # print(self.layers[-1].output)
                         if predictedIndex == actualIndex:
-                            print("YUUUUUH")
+                            # print("YUUUUUH")
                             acc += 1
 
                         # lossDerivative = (2 / len(self.layers)) * (self.layers[-1].output - actual)
