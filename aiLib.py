@@ -146,7 +146,8 @@ class FFLayer(Layer):
     def updateParameters(self, n):
         # Average the gradients
         self.gradient /= n
-        self.weights -= self.optimizerFunc(self, 0, self.gradient.dot(self.output[np.newaxis].T))
+        # self.weights -= self.optimizerFunc(self, 0, self.gradient.dot(self.output[np.newaxis].T))
+        self.weights -= self.optimizerFunc(self, 0, self.gradient.dot(self.output.reshape((-1, 1))))
         self.biases -= self.optimizerFunc(self, 1, self.gradient)
 
     def setup_(self, prev, nextL, optimizerFunc):
@@ -223,8 +224,8 @@ class LSTMLayer(Layer):
         self.states = self.ot * np.tanh(self.output)
 
     def calculateGradient(self):
-        nGradient = self.next.weights.T.dot(self.next.gradient)
-        # nGradient = self.next.weights.T.dot(self.next.gradient) * self.dOutput
+        # nGradient = self.next.weights.T.dot(self.next.gradient)
+        nGradient = self.next.weights.T.dot(self.next.gradient) * self.dOutput
 
         # Output
         go = nGradient * np.tanh(self.output) * dSigmoid(self.zo)
@@ -250,33 +251,35 @@ class LSTMLayer(Layer):
         # C
         # tmp4 = nGradient * self.ot * dTanH(self.output) * self.it * dTanH(self.zg)
 
-        gor = go.reshape((-1, 1))
-        gfr = gf.reshape((-1, 1))
-        gir = gi.reshape((-1, 1))
-        gcr = gc.reshape((-1, 1))
+        # gor = go.reshape((-1, 1))
+        # gfr = gf.reshape((-1, 1))
+        # gir = gi.reshape((-1, 1))
+        # gcr = gc.reshape((-1, 1))
 
-        prevOutput = self.prev.output.reshape((-1, 1))
-        states = self.states.reshape((-1, 1))
+        # prevOutput = self.prev.output.reshape((-1, 1))
+        prevOutput = self.prev.output.reshape((1, -1))
+        # states = self.states.reshape((-1, 1))
+        states = self.states.reshape((1, -1))
 
         # print(np.dot(prevOutput, tmp1.T))
 
         # Normal transpose
         # self.prev.output.T
 
-        self.f1WeightsGr += np.dot(gfr, states.T)
-        self.f2WeightsGr += np.dot(gfr, prevOutput.T)
+        self.f1WeightsGr += np.dot(gf, states.T)
+        self.f2WeightsGr += np.dot(gf, prevOutput.T)
         self.fBiasesGr += gf
 
-        self.i1WeightsGr += np.dot(gir, states.T)
-        self.i2WeightsGr += np.dot(gir, prevOutput.T)
+        self.i1WeightsGr += np.dot(gi, states.T)
+        self.i2WeightsGr += np.dot(gi, prevOutput.T)
         self.iBiasesGr += gi
 
-        self.c1WeightsGr += np.dot(gcr, states.T)
-        self.c2WeightsGr += np.dot(gcr, prevOutput.T)
+        self.c1WeightsGr += np.dot(gc, states.T)
+        self.c2WeightsGr += np.dot(gc, prevOutput.T)
         self.cBiasesGr += gc
 
-        self.o1WeightsGr += np.dot(gor, states.T)
-        self.o2WeightsGr += np.dot(gor, prevOutput.T)
+        self.o1WeightsGr += np.dot(go, states.T)
+        self.o2WeightsGr += np.dot(go, prevOutput.T)
         self.oBiasesGr += go
 
     def updateParameters(self, n):
