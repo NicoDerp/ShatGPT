@@ -26,18 +26,17 @@ def Softmax(x):
 
 
 def dSoftmax(x):
-    #print("Start", x.shape)
     e = np.exp(x - np.max(x))
-    a = (e / np.sum(e)) * (1 - e / np.sum(e))
-    #print("Out", a.shape)
-    return a
+    return (e / np.sum(e)) * (1 - e / np.sum(e))
 
-#def dSoftmax(x):
-#    print("Start", x.shape)
-#    SM = x.reshape((-1,1))
-#    jac = np.diagflat(x) - np.dot(SM, SM.T)
-#    print("Out", jac.shape)
-#    return jac
+
+# def dSoftmax(x):
+#     print("Start", x.shape)
+#     SM = x.reshape((-1, 1))
+#     jac = np.diagflat(x) - np.dot(SM, SM.T)
+#     print("Out", jac.shape)
+#     return jac
+
 
 def Sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -261,22 +260,19 @@ class LSTMLayer(Layer):
 
         self.f1WeightsGr = np.dot(gfr, states.T)
         self.f2WeightsGr = np.dot(gfr, prevOutput.T)
-        self.fBiasesGr = gfr
-        
-        print(self.fBiasesGr.shape)
-        print(self.fBiasesGr.shape)
+        self.fBiasesGr = gf
 
         self.i1WeightsGr = np.dot(gir, states.T)
         self.i2WeightsGr = np.dot(gir, prevOutput.T)
-        self.iBiasesGr = gir
+        self.iBiasesGr = gi
 
         self.c1WeightsGr = np.dot(gcr, states.T)
         self.c2WeightsGr = np.dot(gcr, prevOutput.T)
-        self.cBiasesGr = gcr
+        self.cBiasesGr = gc
 
         self.o1WeightsGr = np.dot(gor, states.T)
         self.o2WeightsGr = np.dot(gor, prevOutput.T)
-        self.oBiasesGr = gor
+        self.oBiasesGr = go
 
     def updateParameters(self, n):
         self.f1Weights -= self.optimizerFunc(self, 0, self.f1WeightsGr)
@@ -444,21 +440,26 @@ class AI:
             print(f" - {len(dataset) % mbSize} sample(s) for last batch")
 
         print(f""" - {self.learningRate} learning rate
- - '{self.optimizer}' optimization technique""")
+ - '{self.optimizer}' optimization technique
+ - Dataset with {len(dataset)} sentences""")
          #"""
 
         losses = []
+        accuracies = []
 
         # For each epoch
         for epoch in range(epochs):
             # print(f"Epoch {epoch + 1}/{epochs}")
 
             loss = 0
+            accuracy = 0
 
             if shuffle:
                 np.random.shuffle(dataset)
 
             for batch in range(batchCount):
+
+                acc = 0
 
                 samples = dataset[batch*mbSize:min((batch+1)*mbSize, len(dataset))]
                 batchSize = len(samples)
@@ -474,7 +475,16 @@ class AI:
                         self.feedForward(inputState)
 
                         # loss += np.mean((actual - self.layers[-1].output) ** 2)
-                        loss += np.mean(self.lossFunction(actual, self.layers[-1].output))
+                        loss += np.sum(self.lossFunction(actual, self.layers[-1].output))
+
+                        predictedIndex = np.argmax(self.layers[-1].output)
+                        actualIndex = np.argmax(actual)
+                        print(predictedIndex)
+                        print(actual, actualIndex)
+                        # print(self.layers[-1].output)
+                        if predictedIndex == actualIndex:
+                            print("YUUUUUH")
+                            acc += 1
 
                         # lossDerivative = (2 / len(self.layers)) * (self.layers[-1].output - actual)
                         lossDerivative = self.dLossFunction(actual, self.layers[-1].output)
@@ -500,18 +510,26 @@ class AI:
                     print(f"Done at epoch {epoch+1}/{epochs} with loss {loss:.10f}")
                     return
 
-                if batch % 2 == 0:
+                if batch % 4 == 0:
                     # loss = loss / sum([len(d) for d in dataset])
                     print(f"Batch {batch + 1}/{batchCount} {loss:.10f}")
 
-            if epoch % 1 == 0:
+                accuracy += acc / batchSize
+
+            if epoch % 4 == 0:
                 # loss = loss / sum([len(d) for d in dataset])
                 print(f"Epoch {epoch+1}/{epochs} {loss:.10f}")
 
             losses.append(loss / batchCount)
+            accuracies.append(accuracy / batchCount)
 
-        plt.plot(np.arange(0, epochs), losses)
+        print("\nTraining complete!")
+
+        plt.plot(np.arange(0, epochs), losses, label="Loss")
+        # plt.plot(np.arange(0, epochs), accuracies, label="accuracy")
         plt.title("ShatGPT stats")
-        plt.xlabel("Epoch")
-        plt.ylabel("Loss")
+        plt.xlabel("epoch")
+        plt.ylabel("accuracy")
+        plt.legend()
+        plt.grid()
         plt.show()

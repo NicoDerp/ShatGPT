@@ -13,7 +13,7 @@ tokenizer = RegexpTokenizer(r'\w+')
 words = tokenizer.tokenize(text)
 
 # A lot fewer words
-words = words[:128]
+words = words[:10]
 
 unique_words = np.unique(words)
 unique_word_index = dict((c, i) for i, c in enumerate(unique_words))
@@ -30,8 +30,10 @@ prev_words = []
 for j in range(len(words) - SENTENCE_DEPTH):
     prev_words.append(words[j:j + SENTENCE_DEPTH])
     next_word.append(words[j + SENTENCE_DEPTH])
-print(prev_words[1])
-print(next_word[1])
+print(prev_words)
+print(next_word)
+
+print(unique_word_index)
 
 # Very inefficient one-shot
 X = np.zeros((len(prev_words), SENTENCE_DEPTH, len(unique_words)), dtype=int)
@@ -51,15 +53,17 @@ for prevs, cur in zip(X, Y):
 
 ai = AI(layers=[
             InputLayer((len(unique_words),)),
-            LSTMLayer(len(unique_words)),
-            # FFLayer(60, activation="ReLU"),
+            # LSTMLayer(len(unique_words)),
+            FFLayer(30, activation="ReLU"),
+            FFLayer(30, activation="ReLU"),
             # FFLayer(60, activation="Sigmoid"),
             FFLayer(len(unique_words), activation="Softmax")
         ],
-        loss="CategoricalCrossEntropy",
-        # loss="MSE",
-        optimizer="RMSprop",
-        learningRate=0.01)
+        # loss="CategoricalCrossEntropy",
+        loss="MSE",
+        # optimizer="RMSprop",
+        optimizer="Adam",
+        learningRate=0.001)
 
 # dataset = [
 #     [
@@ -72,7 +76,7 @@ ai = AI(layers=[
 #     # ],
 # ]
 
-ai.train(dataset, epochs=10, mbSize=32, shuffle=True)
+ai.train(dataset, epochs=2000, mbSize=4, shuffle=True)
 
 ai.save("shatgpt.model")
 
