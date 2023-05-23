@@ -27,7 +27,7 @@ def Softmax(x):
 
 def dSoftmax(x):
     s = np.exp(x - np.max(x)) / np.sum(x)
-    return s     * (1 - s)
+    return s * (1 - s)
 
 
 def Sigmoid(x):
