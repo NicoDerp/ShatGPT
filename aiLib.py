@@ -457,6 +457,17 @@ class AI:
         for layer in self.layers:
             layer.reset()
 
+    def predictNextWord(self, inputs, wordList, n=1):
+        self.clean()
+        for w in inputs:
+            self.feedForward(w)
+
+        prediction = self.layers[-1].output
+        predIndexes = np.argpartition(prediction, -n)[-n:]
+        sortedPredIndexes = reversed(predIndexes[np.argsort(prediction[predIndexes])])
+        predWords = [wordList[i] for i in sortedPredIndexes]
+        return predWords
+
     def train(self, dataset, epochs=1, mbSize=1, shuffle=False):
         if mbSize > len(dataset):
             raise ValueError(f"[ERROR] Mini-batch size ({mbSize}) is larger than the dataset's size ({len(dataset)})!")
@@ -541,9 +552,9 @@ class AI:
                     print(f"Done at epoch {epoch+1}/{epochs} with loss {loss:.10f}")
                     return
 
-                if batch % 4 == 0:
-                    # loss = loss / sum([len(d) for d in dataset])
-                    print(f"Batch {batch + 1}/{batchCount} {loss:.10f}")
+                # if batch % 4 == 0:
+                #     # loss = loss / sum([len(d) for d in dataset])
+                #     print(f"Batch {batch + 1}/{batchCount} {loss:.10f}")
 
                 accuracy += acc / batchSize
 
