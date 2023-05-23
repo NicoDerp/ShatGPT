@@ -55,7 +55,7 @@ ai = AI(layers=[
             InputLayer((len(unique_words),)),
             # LSTMLayer(len(unique_words)),
             FFLayer(30, activation="ReLU"),
-            FFLayer(30, activation="ReLU"),
+            # FFLayer(30, activation="ReLU"),
             # FFLayer(60, activation="Sigmoid"),
             FFLayer(len(unique_words), activation="Softmax")
         ],

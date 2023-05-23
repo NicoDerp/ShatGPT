@@ -13,7 +13,7 @@ def dLinearActivation(x):
 
 
 def ReLU(x):
-    return np.maximum(0, x)
+    return np.maximum(x, 0)
 
 
 def dReLU(x):
@@ -68,7 +68,7 @@ def dCategoricalCrossEntropy(actual, pred):
 
 
 class Layer:
-    def __init__(self, layerType, size, activation, gradientCount):
+    def __init__(self, layerType, size, activation):
         self.layerType = layerType
         self.size = size
         self.output = np.zeros(size)
@@ -77,7 +77,6 @@ class Layer:
         self.prev = None
         self.next = None
         self.optimizerFunc = None
-        self.gradientCount = gradientCount
         self.optAttrs = {}
 
         if activation == "Linear":
@@ -118,13 +117,13 @@ class Layer:
 
 class InputLayer(Layer):
     def __init__(self, shape):
-        super().__init__("InputLayer", np.prod(shape), "Linear", 0)
+        super().__init__("InputLayer", np.prod(shape), "Linear")
         self.shape = shape
 
 
 class FFLayer(Layer):
     def __init__(self, size, activation="Linear"):
-        super().__init__("FFLayer", size, activation, 2)
+        super().__init__("FFLayer", size, activation)
 
         self.weights = None
         self.biases = np.zeros(self.size)
@@ -152,7 +151,7 @@ class FFLayer(Layer):
 
 class LSTMLayer(Layer):
     def __init__(self, size, activation="Linear"):
-        super().__init__("FFLayer", size, activation, 12)
+        super().__init__("FFLayer", size, activation)
 
         self.lOutput = np.zeros(size)
         self.lStates = np.zeros(size)
