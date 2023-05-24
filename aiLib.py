@@ -105,12 +105,14 @@ class Layer:
     def reset(self):
         pass
 
-    def setup_(self, prev, nextL, optimizerFunc):
+    def setup_(self, prev, nextL):
         self.prev = prev
         self.next = nextL
-        self.optimizerFunc = optimizerFunc
 
         self.reset()
+
+    def setupOptimizer_(self, optimizerFunc):
+        self.optimizerFunc = optimizerFunc
 
 
 class InputLayer(Layer):
@@ -142,8 +144,8 @@ class FFLayer(Layer):
         self.weights -= self.optimizerFunc(self, 0, self.gradient.dot(self.output.reshape((-1, 1))))
         self.biases -= self.optimizerFunc(self, 1, self.gradient)
 
-    def setup_(self, prev, nextL, optimizerFunc):
-        super().setup_(prev, nextL, optimizerFunc)
+    def setup_(self, prev, nextL):
+        super().setup_(prev, nextL)
 
         self.weights = np.random.rand(self.size, self.prev.size)
 
@@ -314,8 +316,8 @@ class LSTMLayer(Layer):
         self.o2WeightsGr = np.zeros((self.size, self.prev.size))
         self.oBiasesGr = np.zeros(self.size)
 
-    def setup_(self, prev, nextL, optimizerFunc):
-        super().setup_(prev, nextL, optimizerFunc)
+    def setup_(self, prev, nextL):
+        super().setup_(prev, nextL)
 
         self.f1Weights = np.random.rand(self.size, self.size)
         self.i1Weights = np.random.rand(self.size, self.size)
@@ -335,49 +337,8 @@ class AI:
         self.optimizer = optimizer
         self.learningRate = learningRate
 
-        if self.loss == "MSE":
-            self.lossFunction = MSE
-            self.dLossFunction = dMSE
-
-        elif self.loss == "CategoricalCrossEntropy":
-            self.lossFunction = CategoricalCrossEntropy
-            self.dLossFunction = dCategoricalCrossEntropy
-
-        else:
-            raise ValueError(f"[ERROR] Invalid loss function passed. You passed '{self.loss}'"
-                             f", while only 'MSE' and 'CategoricalCrossEntropy' are allowed.")
-
-        if self.optimizer == "Adam":
-            self.B1 = 0.9
-            self.B2 = 0.999
-            self.epsilon = 10**-8
-            self.optimizerFunc = self._adam
-
-            for layer in self.layers:
-                layer.optAttrs["Mt"] = {}
-                layer.optAttrs["Vt"] = {}
-
-        elif self.optimizer == "RMSprop":
-            self.epsilon = 10**-8
-            self.gamma = 0.9
-            self.optimizerFunc = self._rmsprop
-
-            for layer in self.layers:
-                layer.optAttrs["Eg2t"] = {}
-
-        elif self.optimizer == "Momentum":
-            self.optimizerFunc = self._momentum
-            self.gamma = 0.9
-            for layer in self.layers:
-                layer.optAttrs["vt"] = {}
-
-        elif self.optimizer == "None":
-            self.optimizerFunc = self._none
-
-        else:
-            raise ValueError(f"[ERROR] Invalid optimizer passed. You passed '{self.optimizer}'"
-                             f", while only 'Adam', 'RMSprop', 'Momentum' and 'None' are allowed.")
-
+        self._setupLoss()
+        self._setupOptimizer()
         self._setupLayers()
 
     def save(self, fn):
@@ -389,6 +350,14 @@ class AI:
         ai = cls.__new__(cls)
         with open(fn, "rb") as f:
             ai.__dict__ = pickle.load(f)
+
+        ai._setupLoss()
+        ai._setupOptimizer()
+
+        for layer in ai.layers:
+            layer.setupOptimizer_(ai.optimizerFunc)
+        # ai._setupLayers()
+
         return ai
 
     def _adam(self, layer, index, gradient):
@@ -429,10 +398,58 @@ class AI:
         if self.layers[0].layerType != "InputLayer":
             raise ValueError(f"[ERROR] First layer isn't InputLayer")
 
-        self.layers[0].setup_(None, self.layers[1], self.optimizerFunc)
+        self.layers[0].setup_(None, self.layers[1])
         for i in range(1, len(self.layers) - 1):
-            self.layers[i].setup_(self.layers[i - 1], self.layers[i + 1], self.optimizerFunc)
-        self.layers[-1].setup_(self.layers[-2], None, self.optimizerFunc)
+            self.layers[i].setup_(self.layers[i - 1], self.layers[i + 1])
+        self.layers[-1].setup_(self.layers[-2], None)
+
+        for layer in self.layers:
+            layer.setupOptimizer_(self.optimizerFunc)
+
+    def _setupOptimizer(self):
+        if self.optimizer == "Adam":
+            self.B1 = 0.9
+            self.B2 = 0.999
+            self.epsilon = 10**-8
+            self.optimizerFunc = self._adam
+
+            for layer in self.layers:
+                layer.optAttrs["Mt"] = {}
+                layer.optAttrs["Vt"] = {}
+
+        elif self.optimizer == "RMSprop":
+            self.epsilon = 10**-8
+            self.gamma = 0.9
+            self.optimizerFunc = self._rmsprop
+
+            for layer in self.layers:
+                layer.optAttrs["Eg2t"] = {}
+
+        elif self.optimizer == "Momentum":
+            self.optimizerFunc = self._momentum
+            self.gamma = 0.9
+            for layer in self.layers:
+                layer.optAttrs["vt"] = {}
+
+        elif self.optimizer == "None":
+            self.optimizerFunc = self._none
+
+        else:
+            raise ValueError(f"[ERROR] Invalid optimizer passed. You passed '{self.optimizer}'"
+                             f", while only 'Adam', 'RMSprop', 'Momentum' and 'None' are allowed.")
+
+    def _setupLoss(self):
+        if self.loss == "MSE":
+            self.lossFunction = MSE
+            self.dLossFunction = dMSE
+
+        elif self.loss == "CategoricalCrossEntropy":
+            self.lossFunction = CategoricalCrossEntropy
+            self.dLossFunction = dCategoricalCrossEntropy
+
+        else:
+            raise ValueError(f"[ERROR] Invalid loss function passed. You passed '{self.loss}'"
+                             f", while only 'MSE' and 'CategoricalCrossEntropy' are allowed.")
 
     def feedForward(self, inputState):
         if inputState.shape != self.layers[0].shape:
@@ -477,7 +494,6 @@ class AI:
         print(f""" - {self.learningRate} learning rate
  - '{self.optimizer}' optimization technique
  - Dataset with {len(dataset)} sentences""")
-         #"""
 
         losses = []
         accuracies = []

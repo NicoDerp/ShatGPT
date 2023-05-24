@@ -54,29 +54,20 @@ for prevs, cur in zip(X, Y):
 
 ai = AI(layers=[
             InputLayer((len(unique_words),)),
-            LSTMLayer(len(unique_words)),
-            # FFLayer(30, activation="ReLU"),
-            # FFLayer(30, activation="ReLU"),
+            # LSTMLayer(len(unique_words)),
+            FFLayer(30, activation="Sigmoid"),
+            FFLayer(30, activation="Sigmoid"),
             FFLayer(len(unique_words), activation="Softmax")
         ],
-        loss="CategoricalCrossEntropy",
-        # loss="MSE",
+        # loss="CategoricalCrossEntropy",
+        loss="MSE",
         optimizer="RMSprop",
         # optimizer="Adam",
-        learningRate=0.06)
+        learningRate=0.01)
 
-# dataset = [
-#     [
-#         [np.array([0, 0, 1]), np.array([0, 1])],
-#         #[np.array([4, 1, 2]), np.array([1, 0])]
-#     ],
-#     # [
-#     #     [np.array([5, 2, 1]), np.array([1, 0.0])],
-#     #     [np.array([0, 1, 2]), np.array([1, 0.0])]
-#     # ],
-# ]
+# ai = AI.load("shatgpt.model")
 
-ai.train(dataset, epochs=1000, mbSize=len(dataset), shuffle=True)
+ai.train(dataset, epochs=2000, mbSize=len(dataset), shuffle=True)
 # ai.train(dataset, epochs=500, mbSize=64, shuffle=True)
 
 ai.save("shatgpt.model")
