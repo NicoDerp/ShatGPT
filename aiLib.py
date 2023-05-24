@@ -543,7 +543,7 @@ class AI:
                         # errorL = lossDerivative * self.layers[-1].dActivation(self.layers[-1].zNeurons)
                         errorL = lossDerivative * self.layers[-1].dOutput
 
-                        self.layers[-1].gradient = errorL
+                        self.layers[-1].gradient += errorL
 
                         # L-1 .. 0
                         for i in range(len(self.layers) - 2, 0, -1):
