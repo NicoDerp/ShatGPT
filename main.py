@@ -56,18 +56,18 @@ ai = AI(layers=[
             InputLayer((len(unique_words),)),
             LSTMLayer(len(unique_words)),
             # FFLayer(30, activation="Sigmoid"),
-            FFLayer(30, activation="Sigmoid"),
+            # FFLayer(30, activation="Sigmoid"),
             FFLayer(len(unique_words), activation="Softmax")
         ],
         # loss="CategoricalCrossEntropy",
         loss="MSE",
         optimizer="RMSprop",
         # optimizer="Adam",
-        learningRate=0.01)
+        learningRate=0.004)
 
 # ai = AI.load("shatgpt.model")
 
-ai.train(dataset, epochs=1000, mbSize=len(dataset), shuffle=True)
+ai.train(dataset, epochs=2000, mbSize=len(dataset), shuffle=True)
 # ai.train(dataset, epochs=500, mbSize=64, shuffle=True)
 
 ai.save("shatgpt.model")

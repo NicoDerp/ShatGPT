@@ -23,7 +23,7 @@ unique_word_index_reverse = dict((i, c) for i, c in enumerate(unique_words))
 ai = AI.load("shatgpt.model")
 
 encoded = []
-testWords = words[2:6]
+testWords = words[5:10]
 print("Testing", testWords)
 
 for w in testWords:

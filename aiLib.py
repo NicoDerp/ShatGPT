@@ -52,15 +52,15 @@ def dMSE(actual, pred):
 
 
 def CategoricalCrossEntropy(actual, pred):
-    pred = np.clip(pred, 1e-12, 1.0 - 1e-12)
-    # return -actual * np.log(pred + 10**-8)
-    return -actual * np.log(pred)
+    # pred = np.clip(pred, 1e-12, 1.0 - 1e-12)
+    return -actual * np.log(pred + 10**-100)
+    # return -actual * np.log(pred)
 
 
 def dCategoricalCrossEntropy(actual, pred):
-    pred = np.clip(pred, 1e-12, 1.0 - 1e-12)
-    # return -actual / (pred + 10**-8)
-    return -actual / pred
+    # pred = np.clip(pred, 1e-12, 1.0 - 1e-12)
+    return -actual / (pred + 10**-100)
+    # return -actual / pred
 
 
 class Layer:
@@ -69,7 +69,8 @@ class Layer:
         self.size = size
         self.output = np.zeros(size)
         self.dOutput = np.zeros(size)
-        self.gradient = None
+        self.gradient = np.zeros(size)
+        self.sGradient = np.zeros(size)
         self.prev = None
         self.next = None
         self.optimizerFunc = None
@@ -103,7 +104,11 @@ class Layer:
         pass
 
     def reset(self):
-        pass
+        self.output = np.zeros(self.size)
+        self.dOutput = np.zeros(self.size)
+
+        self.gradient = np.zeros(self.size)
+        self.sGradient = np.zeros(self.size)
 
     def setup_(self, prev, nextL):
         self.prev = prev
@@ -135,14 +140,15 @@ class FFLayer(Layer):
         self.output = self.activation(self.output)
 
     def calculateGradient(self):
-        self.gradient += self.next.weights.T.dot(self.next.gradient) * self.dOutput
+        self.gradient = self.next.weights.T.dot(self.next.gradient) * self.dOutput
+        self.sGradient += self.gradient
 
     def updateParameters(self, n):
         # Average the gradients
-        self.gradient /= n
+        self.sGradient /= n
         # self.weights -= self.optimizerFunc(self, 0, self.gradient.dot(self.output[np.newaxis].T))
-        self.weights -= self.optimizerFunc(self, 0, self.gradient.dot(self.output.reshape((-1, 1))))
-        self.biases -= self.optimizerFunc(self, 1, self.gradient)
+        self.weights -= self.optimizerFunc(self, 0, self.sGradient.dot(self.output.reshape((-1, 1))))
+        self.biases -= self.optimizerFunc(self, 1, self.sGradient)
 
     def setup_(self, prev, nextL):
         super().setup_(prev, nextL)
@@ -172,20 +178,20 @@ class LSTMLayer(Layer):
         self.cBiases = np.zeros(self.size)
         self.oBiases = np.zeros(self.size)
 
-        self.f1WeightsGr = None
-        self.i1WeightsGr = None
-        self.c1WeightsGr = None
-        self.o1WeightsGr = None
-
-        self.f2WeightsGr = None
-        self.i2WeightsGr = None
-        self.c2WeightsGr = None
-        self.o2WeightsGr = None
-
-        self.fBiasesGr = np.zeros(self.size)
-        self.iBiasesGr = np.zeros(self.size)
-        self.cBiasesGr = np.zeros(self.size)
-        self.oBiasesGr = np.zeros(self.size)
+        # self.f1WeightsGr = None
+        # self.i1WeightsGr = None
+        # self.c1WeightsGr = None
+        # self.o1WeightsGr = None
+        #
+        # self.f2WeightsGr = None
+        # self.i2WeightsGr = None
+        # self.c2WeightsGr = None
+        # self.o2WeightsGr = None
+        #
+        # self.fBiasesGr = np.zeros(self.size)
+        # self.iBiasesGr = np.zeros(self.size)
+        # self.cBiasesGr = np.zeros(self.size)
+        # self.oBiasesGr = np.zeros(self.size)
 
         self.zf = None
         self.zi = None
@@ -221,102 +227,96 @@ class LSTMLayer(Layer):
 
     def calculateGradient(self):
         # nGradient = self.next.weights.T.dot(self.next.gradient)
-        nGradient = self.next.weights.T.dot(self.next.gradient) * self.dOutput
+        self.gradient = self.next.weights.T.dot(self.next.gradient) * self.dOutput
+        self.sGradient += self.gradient
 
-        # Output
-        go = nGradient * np.tanh(self.output) * dSigmoid(self.zo)
-
-        # Forget
-        gf = nGradient * self.ot * dTanH(self.output) * self.lOutput * dSigmoid(self.zf)
-
-        # Input
-        gi = nGradient * self.ot * dTanH(self.output) * self.gt * dSigmoid(self.zi)
-
-        # C
-        gc = nGradient * self.ot * dTanH(self.output) * self.it * dTanH(self.zg)
-
-        # Forget
-        # tmp1 = nGradient * self.ot * dTanh(self.output) * self.lStates * dSigmoid(self.ft)
-
-        # Input
-        # tmp2 = nGradient * self.ot * dTanH(self.output) * self.gt * dSigmoid(self.it)
-
-        # Output
-        # tmp3 = nGradient * dTanH(self.output) * dSigmoid(self.ot)
-
-        # C
-        # tmp4 = nGradient * self.ot * dTanH(self.output) * self.it * dTanH(self.zg)
-
-        # gor = go.reshape((-1, 1))
-        # gfr = gf.reshape((-1, 1))
-        # gir = gi.reshape((-1, 1))
-        # gcr = gc.reshape((-1, 1))
-
-        # prevOutput = self.prev.output.reshape((-1, 1))
-        prevOutput = self.prev.output.reshape((1, -1))
-        # states = self.states.reshape((-1, 1))
-        states = self.states.reshape((1, -1))
-
-        # print(np.dot(prevOutput, tmp1.T))
-
-        # Normal transpose
-        # self.prev.output.T
-
-        self.f1WeightsGr += np.dot(gf, states.T)
-        self.f2WeightsGr += np.dot(gf, prevOutput.T)
-        self.fBiasesGr += gf
-
-        self.i1WeightsGr += np.dot(gi, states.T)
-        self.i2WeightsGr += np.dot(gi, prevOutput.T)
-        self.iBiasesGr += gi
-
-        self.c1WeightsGr += np.dot(gc, states.T)
-        self.c2WeightsGr += np.dot(gc, prevOutput.T)
-        self.cBiasesGr += gc
-
-        self.o1WeightsGr += np.dot(go, states.T)
-        self.o2WeightsGr += np.dot(go, prevOutput.T)
-        self.oBiasesGr += go
+        # self.f1WeightsGr += np.dot(gf, states.T)
+        # self.f2WeightsGr += np.dot(gf, prevOutput.T)
+        # self.fBiasesGr += gf
+        #
+        # self.i1WeightsGr += np.dot(gi, states.T)
+        # self.i2WeightsGr += np.dot(gi, prevOutput.T)
+        # self.iBiasesGr += gi
+        #
+        # self.c1WeightsGr += np.dot(gc, states.T)
+        # self.c2WeightsGr += np.dot(gc, prevOutput.T)
+        # self.cBiasesGr += gc
+        #
+        # self.o1WeightsGr += np.dot(go, states.T)
+        # self.o2WeightsGr += np.dot(go, prevOutput.T)
+        # self.oBiasesGr += go
 
     def updateParameters(self, n):
-        self.f1Weights -= self.optimizerFunc(self, 0, self.f1WeightsGr)
-        self.f2Weights -= self.optimizerFunc(self, 1, self.f2WeightsGr)
-        self.fBiases -= self.optimizerFunc(self, 2, self.fBiasesGr)
+        # Output
+        go = self.sGradient * np.tanh(self.output) * dSigmoid(self.zo)
 
-        self.i1Weights -= self.optimizerFunc(self, 3, self.i1WeightsGr)
-        self.i2Weights -= self.optimizerFunc(self, 4, self.i2WeightsGr)
-        self.iBiases -= self.optimizerFunc(self, 5, self.iBiasesGr)
+        # Forget
+        gf = self.sGradient * self.ot * dTanH(self.output) * self.lOutput * dSigmoid(self.zf)
 
-        self.c1Weights -= self.optimizerFunc(self, 6, self.c1WeightsGr)
-        self.c2Weights -= self.optimizerFunc(self, 7, self.c2WeightsGr)
-        self.cBiases -= self.optimizerFunc(self, 8, self.cBiasesGr)
+        # Input
+        gi = self.sGradient * self.ot * dTanH(self.output) * self.gt * dSigmoid(self.zi)
 
-        self.o1Weights -= self.optimizerFunc(self, 9, self.o1WeightsGr)
-        self.o2Weights -= self.optimizerFunc(self, 10, self.o2WeightsGr)
-        self.oBiases -= self.optimizerFunc(self, 11, self.oBiasesGr)
+        # C
+        gc = self.sGradient * self.ot * dTanH(self.output) * self.it * dTanH(self.zg)
+
+        prevOutput = self.prev.output.reshape((1, -1))
+        states = self.states.reshape((1, -1))
+
+        self.f1Weights -= self.optimizerFunc(self, 0, np.dot(gf, states.T))
+        self.f2Weights -= self.optimizerFunc(self, 1, np.dot(gf, prevOutput.T))
+        self.fBiases -= self.optimizerFunc(self, 2, gf)
+
+        self.i1Weights -= self.optimizerFunc(self, 3, np.dot(gi, states.T))
+        self.i2Weights -= self.optimizerFunc(self, 4, np.dot(gi, prevOutput.T))
+        self.iBiases -= self.optimizerFunc(self, 5, gi)
+
+        self.c1Weights -= self.optimizerFunc(self, 6, np.dot(gc, states.T))
+        self.c2Weights -= self.optimizerFunc(self, 7, np.dot(gc, prevOutput.T))
+        self.cBiases -= self.optimizerFunc(self, 8, gc)
+
+        self.o1Weights -= self.optimizerFunc(self, 9, np.dot(go, states.T))
+        self.o2Weights -= self.optimizerFunc(self, 10, np.dot(go, prevOutput.T))
+        self.oBiases -= self.optimizerFunc(self, 11, go)
+
+        # self.f1Weights -= self.optimizerFunc(self, 0, self.f1WeightsGr)
+        # self.f2Weights -= self.optimizerFunc(self, 1, self.f2WeightsGr)
+        # self.fBiases -= self.optimizerFunc(self, 2, self.fBiasesGr)
+        #
+        # self.i1Weights -= self.optimizerFunc(self, 3, self.i1WeightsGr)
+        # self.i2Weights -= self.optimizerFunc(self, 4, self.i2WeightsGr)
+        # self.iBiases -= self.optimizerFunc(self, 5, self.iBiasesGr)
+        #
+        # self.c1Weights -= self.optimizerFunc(self, 6, self.c1WeightsGr)
+        # self.c2Weights -= self.optimizerFunc(self, 7, self.c2WeightsGr)
+        # self.cBiases -= self.optimizerFunc(self, 8, self.cBiasesGr)
+        #
+        # self.o1Weights -= self.optimizerFunc(self, 9, self.o1WeightsGr)
+        # self.o2Weights -= self.optimizerFunc(self, 10, self.o2WeightsGr)
+        # self.oBiases -= self.optimizerFunc(self, 11, self.oBiasesGr)
 
     def reset(self):
-        self.output = np.zeros(self.size)
+        super().reset()
+
         self.states = np.zeros(self.size)
 
         self.lOutput = np.zeros(self.size)
         self.lStates = np.zeros(self.size)
 
-        self.f1WeightsGr = np.zeros((self.size, self.size))
-        self.f2WeightsGr = np.zeros((self.size, self.prev.size))
-        self.fBiasesGr = np.zeros(self.size)
-
-        self.i1WeightsGr = np.zeros((self.size, self.size))
-        self.i2WeightsGr = np.zeros((self.size, self.prev.size))
-        self.iBiasesGr = np.zeros(self.size)
-
-        self.c1WeightsGr = np.zeros((self.size, self.size))
-        self.c2WeightsGr = np.zeros((self.size, self.prev.size))
-        self.cBiasesGr = np.zeros(self.size)
-
-        self.o1WeightsGr = np.zeros((self.size, self.size))
-        self.o2WeightsGr = np.zeros((self.size, self.prev.size))
-        self.oBiasesGr = np.zeros(self.size)
+        # self.f1WeightsGr = np.zeros((self.size, self.size))
+        # self.f2WeightsGr = np.zeros((self.size, self.prev.size))
+        # self.fBiasesGr = np.zeros(self.size)
+        #
+        # self.i1WeightsGr = np.zeros((self.size, self.size))
+        # self.i2WeightsGr = np.zeros((self.size, self.prev.size))
+        # self.iBiasesGr = np.zeros(self.size)
+        #
+        # self.c1WeightsGr = np.zeros((self.size, self.size))
+        # self.c2WeightsGr = np.zeros((self.size, self.prev.size))
+        # self.cBiasesGr = np.zeros(self.size)
+        #
+        # self.o1WeightsGr = np.zeros((self.size, self.size))
+        # self.o2WeightsGr = np.zeros((self.size, self.prev.size))
+        # self.oBiasesGr = np.zeros(self.size)
 
     def setup_(self, prev, nextL):
         super().setup_(prev, nextL)
