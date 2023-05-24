@@ -215,6 +215,8 @@ class LSTMLayer(Layer):
         self.lOutput = self.output
         self.lStates = self.states
         self.output = self.ft * self.output + self.it * self.gt
+        self.dOutput = self.dActivation(self.output)
+        self.output = self.activation(self.output)
         self.states = self.ot * np.tanh(self.output)
 
     def calculateGradient(self):
