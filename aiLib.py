@@ -60,7 +60,7 @@ def CategoricalCrossEntropy(actual, pred):
 def dCategoricalCrossEntropy(actual, pred):
     # pred = np.clip(pred, 1e-12, 1.0 - 1e-12)
     # return -actual / (pred + 10**-100)
-    return actual / (pred + 10**-100)
+    return -actual / (pred + 10**-100)
     # return -actual / pred
 
 
@@ -508,6 +508,8 @@ class AI:
         losses = []
         accuracies = []
 
+        miniBatches = [(data[i*mbSize:min((i+1)*mbSize, datasetSize)], labels[i]) for i in range(batchCount)]
+
         # For each epoch
         for epoch in range(epochs):
             # print(f"Epoch {epoch + 1}/{epochs}")
@@ -516,16 +518,10 @@ class AI:
             accuracy = 0
 
             if shuffle:
-                indices = np.arange(data.shape[0])
-                np.random.shuffle(indices)
-                data = data[indices]
-                labels = labels[indices]
+                np.random.shuffle(miniBatches)
 
-            for batch in range(batchCount):
+            for batch, (samples, label) in enumerate(miniBatches):
                 acc = 0
-
-                samples = data[batch*mbSize:min((batch+1)*mbSize, datasetSize)]
-                label = labels[batch]
                 batchSize = len(samples)
 
                 # For each sentence
