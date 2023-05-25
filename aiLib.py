@@ -44,7 +44,7 @@ def dTanH(x):
 
 
 def MSE(actual, pred):
-    return (actual - pred)**2
+    return np.mean((actual - pred)**2)
 
 
 def dMSE(actual, pred):
@@ -53,13 +53,14 @@ def dMSE(actual, pred):
 
 def CategoricalCrossEntropy(actual, pred):
     # pred = np.clip(pred, 1e-12, 1.0 - 1e-12)
-    return -actual * np.log(pred + 10**-100)
+    return -np.sum(actual * np.log(pred + 10**-100))
     # return -actual * np.log(pred)
 
 
 def dCategoricalCrossEntropy(actual, pred):
     # pred = np.clip(pred, 1e-12, 1.0 - 1e-12)
-    return -actual / (pred + 10**-100)
+    # return -actual / (pred + 10**-100)
+    return actual / (pred + 10**-100)
     # return -actual / pred
 
 
@@ -527,7 +528,7 @@ class AI:
                         self.feedForward(inputState)
 
                         # loss += np.mean((actual - self.layers[-1].output) ** 2)
-                        loss += np.sum(self.lossFunction(actual, self.layers[-1].output))
+                        loss += self.lossFunction(actual, self.layers[-1].output)
 
                         predictedIndex = np.argmax(self.layers[-1].output)
                         actualIndex = np.argmax(actual)
@@ -543,7 +544,8 @@ class AI:
                         # errorL = lossDerivative * self.layers[-1].dActivation(self.layers[-1].zNeurons)
                         errorL = lossDerivative * self.layers[-1].dOutput
 
-                        self.layers[-1].gradient += errorL
+                        self.layers[-1].gradient = errorL
+                        self.layers[-1].sGradient += errorL
 
                         # L-1 .. 0
                         for i in range(len(self.layers) - 2, 0, -1):
@@ -577,11 +579,16 @@ class AI:
 
         print("\nTraining complete!")
 
-        plt.plot(np.arange(0, epochs), losses, label="Loss")
-        # plt.plot(np.arange(0, epochs), accuracies, label="accuracy")
-        plt.title("ShatGPT stats")
-        plt.xlabel("epoch")
-        plt.ylabel("accuracy")
+        fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(20, 10))
+        ax[0].plot(np.arange(0, epochs), losses, label="Loss")
+        ax[0].set_xlabel("epoch")
+        ax[0].set_ylabel("loss")
+
+        ax[1].plot(np.arange(0, epochs), accuracies, label="Accuracy")
+        ax[1].set_xlabel("epoch")
+        ax[1].set_ylabel("accuracy")
+        # plt.title("ShatGPT stats")
+        fig.tight_layout(pad=10.0)
         plt.legend()
         plt.grid()
         plt.show()

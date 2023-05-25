@@ -13,7 +13,7 @@ tokenizer = RegexpTokenizer(r'\w+')
 words = tokenizer.tokenize(text)
 
 # A lot fewer words
-words = words[:32]
+words = words[:16]
 
 unique_words = np.unique(words)
 unique_word_index = dict((c, i) for i, c in enumerate(unique_words))
