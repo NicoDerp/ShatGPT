@@ -13,7 +13,7 @@ tokenizer = RegexpTokenizer(r'\w+')
 words = tokenizer.tokenize(text)
 
 # A lot fewer words
-words = words[:16]
+words = words[:256]
 
 unique_words = np.unique(words)
 unique_word_index = dict((c, i) for i, c in enumerate(unique_words))
@@ -43,18 +43,18 @@ ai = AI(layers=[
             InputLayer((len(unique_words),)),
             LSTMLayer(len(unique_words)),
             # FFLayer(50, activation="Sigmoid"),
-            FFLayer(50, activation="ReLU"),
+            # FFLayer(50, activation="ReLU"),
             FFLayer(len(unique_words), activation="Softmax")
         ],
         loss="CategoricalCrossEntropy",
         # loss="MSE",
-        # optimizer="RMSprop",
-        optimizer="Adam",
-        learningRate=0.001)
+        optimizer="RMSprop",
+        # optimizer="Adam",
+        learningRate=0.1)
 
 # ai = AI.load("shatgpt.model")
 
-ai.train(X, Y, epochs=500, mbSize=X.size, shuffle=True)
+ai.train(X, Y, epochs=130, mbSize=X.shape[0], shuffle=True)
 # ai.train(dataset, epochs=500, mbSize=64, shuffle=True)
 
 ai.save("shatgpt.model")

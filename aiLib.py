@@ -487,7 +487,7 @@ class AI:
         if mbSize <= 0:
             raise ValueError(f"[ERROR] Mini-batch size must be larger than 0. Currently it is {mbSize}")
 
-        datasetSize = data.size
+        datasetSize = data.shape[0]
         if mbSize > datasetSize:
             raise ValueError(f"[ERROR] Mini-batch size ({mbSize}) is larger than the dataset's size ({datasetSize})!")
 
@@ -495,7 +495,7 @@ class AI:
 
         print(f"""Training AI with parameters:
  - {epochs} epoch(s)
- - {batchCount} batch(es)
+ - {batchCount} batch(es) per epoch
  - {mbSize} sample(s) per batch""")
 
         if datasetSize % mbSize != 0:
@@ -567,9 +567,9 @@ class AI:
                 for layer in self.layers:
                     layer.updateParameters(batchSize)
 
-                if loss < 0.0000001:
-                    print(f"Done at epoch {epoch+1}/{epochs} with loss {loss:.10f}")
-                    break
+                #if loss < 0.0000001:
+                #    print(f"Done at epoch {epoch+1}/{epochs} with loss {loss:.10f}")
+                #    break
 
                 # if batch % 4 == 0:
                 #     # loss = loss / sum([len(d) for d in dataset])
