@@ -71,7 +71,6 @@ class Layer:
         self.output = np.zeros(size)
         self.dOutput = np.zeros(size)
         self.gradient = np.zeros(size)
-        self.sGradient = np.zeros(size)
         self.prev = None
         self.next = None
         self.optimizerFunc = None
@@ -98,7 +97,10 @@ class Layer:
     def feedForward(self):
         pass
 
-    def calculateGradient(self):
+    def calculateError(self):
+        pass
+
+    def calculateGradients(self):
         pass
 
     def updateParameters(self, n):
@@ -109,7 +111,6 @@ class Layer:
         self.dOutput = np.zeros(self.size)
 
         self.gradient = np.zeros(self.size)
-        self.sGradient = np.zeros(self.size)
 
     def setup_(self, prev, nextL):
         self.prev = prev
@@ -135,26 +136,36 @@ class FFLayer(Layer):
         self.biases = np.zeros(self.size)
         self.gradient = np.zeros(self.size)
 
+        self.weightsGr = None
+        self.biasesGr = np.zeros(self.size)
+
     def feedForward(self):
         self.output = self.weights.dot(self.prev.output) + self.biases
         self.dOutput = self.dActivation(self.output)
         self.output = self.activation(self.output)
 
-    def calculateGradient(self):
+    def calculateError(self):
         self.gradient = self.next.weights.T.dot(self.next.gradient) * self.dOutput
-        self.sGradient += self.gradient
+
+    def calculateGradients(self):
+        self.weightsGr += self.gradient.dot(self.output.reshape((-1, 1)))
+        self.biasesGr += self.gradient
 
     def updateParameters(self, n):
-        # Average the gradients
-        self.sGradient /= n
-        # self.weights -= self.optimizerFunc(self, 0, self.gradient.dot(self.output[np.newaxis].T))
-        self.weights -= self.optimizerFunc(self, 0, self.sGradient.dot(self.output.reshape((-1, 1))))
-        self.biases -= self.optimizerFunc(self, 1, self.sGradient)
+        self.weights -= self.optimizerFunc(self, 0, self.weightsGr/n)
+        self.biases -= self.optimizerFunc(self, 1, self.biasesGr/n)
+
+    def reset(self):
+        super().reset()
+
+        self.weightsGr = np.zeros((self.size, self.prev.size))
+        self.biasesGr = np.zeros(self.size)
 
     def setup_(self, prev, nextL):
         super().setup_(prev, nextL)
 
         self.weights = np.random.rand(self.size, self.prev.size)
+        self.weightsGr = np.zeros((self.size, self.prev.size))
 
 
 class LSTMLayer(Layer):
@@ -179,20 +190,20 @@ class LSTMLayer(Layer):
         self.cBiases = np.zeros(self.size)
         self.oBiases = np.zeros(self.size)
 
-        # self.f1WeightsGr = None
-        # self.i1WeightsGr = None
-        # self.c1WeightsGr = None
-        # self.o1WeightsGr = None
-        #
-        # self.f2WeightsGr = None
-        # self.i2WeightsGr = None
-        # self.c2WeightsGr = None
-        # self.o2WeightsGr = None
-        #
-        # self.fBiasesGr = np.zeros(self.size)
-        # self.iBiasesGr = np.zeros(self.size)
-        # self.cBiasesGr = np.zeros(self.size)
-        # self.oBiasesGr = np.zeros(self.size)
+        self.f1WeightsGr = None
+        self.i1WeightsGr = None
+        self.c1WeightsGr = None
+        self.o1WeightsGr = None
+
+        self.f2WeightsGr = None
+        self.i2WeightsGr = None
+        self.c2WeightsGr = None
+        self.o2WeightsGr = None
+
+        self.fBiasesGr = np.zeros(self.size)
+        self.iBiasesGr = np.zeros(self.size)
+        self.cBiasesGr = np.zeros(self.size)
+        self.oBiasesGr = np.zeros(self.size)
 
         self.zf = None
         self.zi = None
@@ -226,76 +237,74 @@ class LSTMLayer(Layer):
         self.output = self.activation(self.output)
         self.states = self.ot * np.tanh(self.output)
 
-    def calculateGradient(self):
+    def calculateError(self):
         # nGradient = self.next.weights.T.dot(self.next.gradient)
         self.gradient = self.next.weights.T.dot(self.next.gradient) * self.dOutput
-        self.sGradient += self.gradient
 
-        # self.f1WeightsGr += np.dot(gf, states.T)
-        # self.f2WeightsGr += np.dot(gf, prevOutput.T)
-        # self.fBiasesGr += gf
-        #
-        # self.i1WeightsGr += np.dot(gi, states.T)
-        # self.i2WeightsGr += np.dot(gi, prevOutput.T)
-        # self.iBiasesGr += gi
-        #
-        # self.c1WeightsGr += np.dot(gc, states.T)
-        # self.c2WeightsGr += np.dot(gc, prevOutput.T)
-        # self.cBiasesGr += gc
-        #
-        # self.o1WeightsGr += np.dot(go, states.T)
-        # self.o2WeightsGr += np.dot(go, prevOutput.T)
-        # self.oBiasesGr += go
-
-    def updateParameters(self, n):
-        self.sGradient /= n
-
+    def calculateGradients(self):
         # Output
-        go = self.sGradient * np.tanh(self.output) * dSigmoid(self.zo)
+        go = self.gradient * np.tanh(self.output) * dSigmoid(self.zo)
 
         # Forget
-        gf = self.sGradient * self.ot * dTanH(self.output) * self.lOutput * dSigmoid(self.zf)
+        gf = self.gradient * self.ot * dTanH(self.output) * self.lOutput * dSigmoid(self.zf)
 
         # Input
-        gi = self.sGradient * self.ot * dTanH(self.output) * self.gt * dSigmoid(self.zi)
+        gi = self.gradient * self.ot * dTanH(self.output) * self.gt * dSigmoid(self.zi)
 
         # C
-        gc = self.sGradient * self.ot * dTanH(self.output) * self.it * dTanH(self.zg)
+        gc = self.gradient * self.ot * dTanH(self.output) * self.it * dTanH(self.zg)
 
         prevOutput = self.prev.output.reshape((1, -1))
         states = self.states.reshape((1, -1))
 
-        self.f1Weights -= self.optimizerFunc(self, 0, np.dot(gf, states.T))
-        self.f2Weights -= self.optimizerFunc(self, 1, np.dot(gf, prevOutput.T))
-        self.fBiases -= self.optimizerFunc(self, 2, gf)
+        self.f1WeightsGr += np.dot(gf, states.T)
+        self.f2WeightsGr += np.dot(gf, prevOutput.T)
+        self.fBiasesGr += gf
 
-        self.i1Weights -= self.optimizerFunc(self, 3, np.dot(gi, states.T))
-        self.i2Weights -= self.optimizerFunc(self, 4, np.dot(gi, prevOutput.T))
-        self.iBiases -= self.optimizerFunc(self, 5, gi)
+        self.i1WeightsGr += np.dot(gi, states.T)
+        self.i2WeightsGr += np.dot(gi, prevOutput.T)
+        self.iBiasesGr += gi
 
-        self.c1Weights -= self.optimizerFunc(self, 6, np.dot(gc, states.T))
-        self.c2Weights -= self.optimizerFunc(self, 7, np.dot(gc, prevOutput.T))
-        self.cBiases -= self.optimizerFunc(self, 8, gc)
+        self.c1WeightsGr += np.dot(gc, states.T)
+        self.c2WeightsGr += np.dot(gc, prevOutput.T)
+        self.cBiasesGr += gc
 
-        self.o1Weights -= self.optimizerFunc(self, 9, np.dot(go, states.T))
-        self.o2Weights -= self.optimizerFunc(self, 10, np.dot(go, prevOutput.T))
-        self.oBiases -= self.optimizerFunc(self, 11, go)
+        self.o1WeightsGr += np.dot(go, states.T)
+        self.o2WeightsGr += np.dot(go, prevOutput.T)
+        self.oBiasesGr += go
 
-        # self.f1Weights -= self.optimizerFunc(self, 0, self.f1WeightsGr)
-        # self.f2Weights -= self.optimizerFunc(self, 1, self.f2WeightsGr)
-        # self.fBiases -= self.optimizerFunc(self, 2, self.fBiasesGr)
+    def updateParameters(self, n):
+        # self.f1Weights -= self.optimizerFunc(self, 0, np.dot(gf, states.T))
+        # self.f2Weights -= self.optimizerFunc(self, 1, np.dot(gf, prevOutput.T))
+        # self.fBiases -= self.optimizerFunc(self, 2, gf)
         #
-        # self.i1Weights -= self.optimizerFunc(self, 3, self.i1WeightsGr)
-        # self.i2Weights -= self.optimizerFunc(self, 4, self.i2WeightsGr)
-        # self.iBiases -= self.optimizerFunc(self, 5, self.iBiasesGr)
+        # self.i1Weights -= self.optimizerFunc(self, 3, np.dot(gi, states.T))
+        # self.i2Weights -= self.optimizerFunc(self, 4, np.dot(gi, prevOutput.T))
+        # self.iBiases -= self.optimizerFunc(self, 5, gi)
         #
-        # self.c1Weights -= self.optimizerFunc(self, 6, self.c1WeightsGr)
-        # self.c2Weights -= self.optimizerFunc(self, 7, self.c2WeightsGr)
-        # self.cBiases -= self.optimizerFunc(self, 8, self.cBiasesGr)
+        # self.c1Weights -= self.optimizerFunc(self, 6, np.dot(gc, states.T))
+        # self.c2Weights -= self.optimizerFunc(self, 7, np.dot(gc, prevOutput.T))
+        # self.cBiases -= self.optimizerFunc(self, 8, gc)
         #
-        # self.o1Weights -= self.optimizerFunc(self, 9, self.o1WeightsGr)
-        # self.o2Weights -= self.optimizerFunc(self, 10, self.o2WeightsGr)
-        # self.oBiases -= self.optimizerFunc(self, 11, self.oBiasesGr)
+        # self.o1Weights -= self.optimizerFunc(self, 9, np.dot(go, states.T))
+        # self.o2Weights -= self.optimizerFunc(self, 10, np.dot(go, prevOutput.T))
+        # self.oBiases -= self.optimizerFunc(self, 11, go)
+
+        self.f1Weights -= self.optimizerFunc(self, 0, self.f1WeightsGr/n)
+        self.f2Weights -= self.optimizerFunc(self, 1, self.f2WeightsGr/n)
+        self.fBiases -= self.optimizerFunc(self, 2, self.fBiasesGr/n)
+
+        self.i1Weights -= self.optimizerFunc(self, 3, self.i1WeightsGr/n)
+        self.i2Weights -= self.optimizerFunc(self, 4, self.i2WeightsGr/n)
+        self.iBiases -= self.optimizerFunc(self, 5, self.iBiasesGr/n)
+
+        self.c1Weights -= self.optimizerFunc(self, 6, self.c1WeightsGr/n)
+        self.c2Weights -= self.optimizerFunc(self, 7, self.c2WeightsGr/n)
+        self.cBiases -= self.optimizerFunc(self, 8, self.cBiasesGr/n)
+
+        self.o1Weights -= self.optimizerFunc(self, 9, self.o1WeightsGr/n)
+        self.o2Weights -= self.optimizerFunc(self, 10, self.o2WeightsGr/n)
+        self.oBiases -= self.optimizerFunc(self, 11, self.oBiasesGr/n)
 
     def reset(self):
         super().reset()
@@ -305,21 +314,21 @@ class LSTMLayer(Layer):
         self.lOutput = np.zeros(self.size)
         self.lStates = np.zeros(self.size)
 
-        # self.f1WeightsGr = np.zeros((self.size, self.size))
-        # self.f2WeightsGr = np.zeros((self.size, self.prev.size))
-        # self.fBiasesGr = np.zeros(self.size)
-        #
-        # self.i1WeightsGr = np.zeros((self.size, self.size))
-        # self.i2WeightsGr = np.zeros((self.size, self.prev.size))
-        # self.iBiasesGr = np.zeros(self.size)
-        #
-        # self.c1WeightsGr = np.zeros((self.size, self.size))
-        # self.c2WeightsGr = np.zeros((self.size, self.prev.size))
-        # self.cBiasesGr = np.zeros(self.size)
-        #
-        # self.o1WeightsGr = np.zeros((self.size, self.size))
-        # self.o2WeightsGr = np.zeros((self.size, self.prev.size))
-        # self.oBiasesGr = np.zeros(self.size)
+        self.f1WeightsGr = np.zeros((self.size, self.size))
+        self.f2WeightsGr = np.zeros((self.size, self.prev.size))
+        self.fBiasesGr = np.zeros(self.size)
+
+        self.i1WeightsGr = np.zeros((self.size, self.size))
+        self.i2WeightsGr = np.zeros((self.size, self.prev.size))
+        self.iBiasesGr = np.zeros(self.size)
+
+        self.c1WeightsGr = np.zeros((self.size, self.size))
+        self.c2WeightsGr = np.zeros((self.size, self.prev.size))
+        self.cBiasesGr = np.zeros(self.size)
+
+        self.o1WeightsGr = np.zeros((self.size, self.size))
+        self.o2WeightsGr = np.zeros((self.size, self.prev.size))
+        self.oBiasesGr = np.zeros(self.size)
 
     def setup_(self, prev, nextL):
         super().setup_(prev, nextL)
@@ -547,12 +556,13 @@ class AI:
                         errorL = lossDerivative * self.layers[-1].dOutput
 
                         self.layers[-1].gradient = errorL
-                        self.layers[-1].sGradient += errorL
+                        self.layers[-1].calculateGradients()
 
                     # L-1 .. 0
                     for i in range(len(self.layers) - 2, 0, -1):
                         layer = self.layers[i]
-                        layer.calculateGradient()
+                        layer.calculateError()
+                        layer.calculateGradients()
 
                     # self.layers[-2].weights -= 0.001 * errorL * self.layers[-2].neurons
 

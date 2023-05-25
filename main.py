@@ -49,13 +49,14 @@ ai = AI(layers=[
         loss="CategoricalCrossEntropy",
         # loss="MSE",
         optimizer="RMSprop",
+        # optimizer="Momentum",
         # optimizer="Adam",
-        learningRate=1.0)
+        learningRate=0.005)
 
 # ai = AI.load("shatgpt.model")
-# ai.learningRate = 40.0
+# ai.learningRate = 0.001
+# ai.train(X, Y, epochs=200, mbSize=64, shuffle=True)
 ai.train(X, Y, epochs=100, mbSize=X.shape[0], shuffle=True)
-# ai.train(dataset, epochs=500, mbSize=64, shuffle=True)
 
 ai.save("shatgpt.model")
 
