@@ -577,7 +577,8 @@ class AI:
                 #     # loss = loss / sum([len(d) for d in dataset])
                 #     print(f"Batch {batch + 1}/{batchCount} {loss:.10f}")
 
-                accuracy += acc / batchSize
+                accuracy += acc / wordCount
+                loss /= wordCount
 
             if epoch % 10 == 0:
                 # loss = loss / sum([len(d) for d in dataset])
