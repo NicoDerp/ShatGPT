@@ -53,8 +53,8 @@ for i, each_words in enumerate(prev_words):
 #         learningRate=1.0)
 
 ai = AI.load("shatgpt.model")
-ai.learningRate = 10.0
-ai.train(X, Y, epochs=300, mbSize=X.shape[0], shuffle=True)
+ai.learningRate = 50.0
+ai.train(X, Y, epochs=200, mbSize=X.shape[0], shuffle=True)
 # ai.train(dataset, epochs=500, mbSize=64, shuffle=True)
 
 ai.save("shatgpt.model")
