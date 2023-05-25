@@ -21,11 +21,6 @@ unique_word_index_reverse = dict((i, c) for i, c in enumerate(unique_words))
 # print(words)
 # print(unique_words)
 
-dataset = []
-
-# for i in range(len(words) - SENTENCE_DEPTH):
-#     dataset.append()
-
 next_word = []
 prev_words = []
 for j in range(len(words) - SENTENCE_DEPTH):
@@ -44,14 +39,6 @@ for i, each_words in enumerate(prev_words):
         X[i, j, unique_word_index[each_word]] = 1
     Y[i, unique_word_index[next_word[i]]] = 1
 
-dataset = []
-for prevs, cur in zip(X, Y):
-    sentence = []
-    for i in range(len(prevs)-1):
-        sentence.append((prevs[i], prevs[i+1]))
-    sentence.append((prevs[-1], cur))
-    dataset.append(sentence)
-
 ai = AI(layers=[
             InputLayer((len(unique_words),)),
             LSTMLayer(len(unique_words)),
@@ -67,7 +54,7 @@ ai = AI(layers=[
 
 # ai = AI.load("shatgpt.model")
 
-ai.train(dataset, epochs=500, mbSize=len(dataset), shuffle=True)
+ai.train(X, Y, epochs=500, mbSize=X.size, shuffle=True)
 # ai.train(dataset, epochs=500, mbSize=64, shuffle=True)
 
 ai.save("shatgpt.model")

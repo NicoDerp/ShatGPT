@@ -480,23 +480,30 @@ class AI:
         predWords = [wordList[i] for i in sortedPredIndexes]
         return predWords
 
-    def train(self, dataset, epochs=1, mbSize=1, shuffle=False):
-        if mbSize > len(dataset):
-            raise ValueError(f"[ERROR] Mini-batch size ({mbSize}) is larger than the dataset's size ({len(dataset)})!")
+    def train(self, data, labels, epochs=1, mbSize=1, shuffle=False):
+        # if data.shape != labels.shape:
+        #    raise ValueError(f"[ERROR] Data shape {data.shape} does not match label shape {labels.shape}")
 
-        batchCount = int(np.ceil(len(dataset) / mbSize))
+        if mbSize <= 0:
+            raise ValueError(f"[ERROR] Mini-batch size must be larger than 0. Currently it is {mbSize}")
+
+        datasetSize = data.size
+        if mbSize > datasetSize:
+            raise ValueError(f"[ERROR] Mini-batch size ({mbSize}) is larger than the dataset's size ({datasetSize})!")
+
+        batchCount = int(np.ceil(datasetSize / mbSize))
 
         print(f"""Training AI with parameters:
  - {epochs} epoch(s)
  - {batchCount} batch(es)
  - {mbSize} sample(s) per batch""")
 
-        if len(dataset) % mbSize != 0:
-            print(f" - {len(dataset) % mbSize} sample(s) for last batch")
+        if datasetSize % mbSize != 0:
+            print(f" - {datasetSize % mbSize} sample(s) for last batch")
 
         print(f""" - {self.learningRate} learning rate
  - '{self.optimizer}' optimization technique
- - Dataset with {len(dataset)} sentences""")
+ - Dataset with {datasetSize} sentences""")
 
         losses = []
         accuracies = []
@@ -509,13 +516,16 @@ class AI:
             accuracy = 0
 
             if shuffle:
-                np.random.shuffle(dataset)
+                indices = np.arange(data.shape[0])
+                np.random.shuffle(indices)
+                data = data[indices]
+                labels = labels[indices]
 
             for batch in range(batchCount):
-
                 acc = 0
 
-                samples = dataset[batch*mbSize:min((batch+1)*mbSize, len(dataset))]
+                samples = data[batch*mbSize:min((batch+1)*mbSize, datasetSize)]
+                label = labels[batch]
                 batchSize = len(samples)
 
                 # For each sentence
@@ -523,46 +533,43 @@ class AI:
 
                     self.clean()
 
-                    # For each word / timestep
-                    for inputState, actual in sentence:
+                    # For each word / timestep predict
+                    for inputState in sentence:
                         self.feedForward(inputState)
 
-                        # loss += np.mean((actual - self.layers[-1].output) ** 2)
-                        loss += self.lossFunction(actual, self.layers[-1].output)
+                    # loss += np.mean((actual - self.layers[-1].output) ** 2)
+                    loss += self.lossFunction(label, self.layers[-1].output)
 
-                        predictedIndex = np.argmax(self.layers[-1].output)
-                        actualIndex = np.argmax(actual)
-                        # print(predictedIndex)
-                        # print(actual, actualIndex)
-                        # print(self.layers[-1].output)
-                        if predictedIndex == actualIndex:
-                            # print("YUUUUUH")
-                            acc += 1
+                    predictedIndex = np.argmax(self.layers[-1].output)
+                    actualIndex = np.argmax(label)
+                    # print(predictedIndex)
+                    # print(actual, actualIndex)
+                    # print(self.layers[-1].output)
+                    if predictedIndex == actualIndex:
+                        # print("YUUUUUH")
+                        acc += 1
 
-                        # lossDerivative = (2 / len(self.layers)) * (self.layers[-1].output - actual)
-                        lossDerivative = self.dLossFunction(actual, self.layers[-1].output)
-                        # errorL = lossDerivative * self.layers[-1].dActivation(self.layers[-1].zNeurons)
-                        errorL = lossDerivative * self.layers[-1].dOutput
+                    # lossDerivative = (2 / len(self.layers)) * (self.layers[-1].output - actual)
+                    lossDerivative = self.dLossFunction(label, self.layers[-1].output)
+                    # errorL = lossDerivative * self.layers[-1].dActivation(self.layers[-1].zNeurons)
+                    errorL = lossDerivative * self.layers[-1].dOutput
 
-                        self.layers[-1].gradient = errorL
-                        self.layers[-1].sGradient += errorL
+                    self.layers[-1].gradient = errorL
+                    self.layers[-1].sGradient += errorL
 
-                        # L-1 .. 0
-                        for i in range(len(self.layers) - 2, 0, -1):
-                            layer = self.layers[i]
-                            layer.calculateGradient()
+                    # L-1 .. 0
+                    for i in range(len(self.layers) - 2, 0, -1):
+                        layer = self.layers[i]
+                        layer.calculateGradient()
 
-                        # self.layers[-2].weights -= 0.001 * errorL * self.layers[-2].neurons
-
-                    # Sum gradients for each layer
-                    # gradients = np.sum(gradients, axis=0)
+                    # self.layers[-2].weights -= 0.001 * errorL * self.layers[-2].neurons
 
                 for layer in self.layers:
                     layer.updateParameters(batchSize)
 
                 if loss < 0.0000001:
                     print(f"Done at epoch {epoch+1}/{epochs} with loss {loss:.10f}")
-                    return
+                    break
 
                 # if batch % 4 == 0:
                 #     # loss = loss / sum([len(d) for d in dataset])
@@ -570,7 +577,7 @@ class AI:
 
                 accuracy += acc / batchSize
 
-            if epoch % 4 == 0:
+            if epoch % 10 == 0:
                 # loss = loss / sum([len(d) for d in dataset])
                 print(f"Epoch {epoch+1}/{epochs} {loss:.10f}")
 
