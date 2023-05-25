@@ -523,36 +523,26 @@ class AI:
                 np.random.shuffle(miniBatches)
 
             for batch, (samples, label) in enumerate(miniBatches):
-                acc = 0
-                batchSize = len(samples)
-
-                wordCount = 0
 
                 # For each sentence
                 for sentence in samples:
 
                     self.clean()
 
-                    wordCount += len(sentence)
-
                     # For each word / timestep predict
-                    for inputState in sentence:
+                    for i, inputState in enumerate(sentence):
                         self.feedForward(inputState)
 
-                        # loss += np.mean((actual - self.layers[-1].output) ** 2)
-                        loss += self.lossFunction(label, self.layers[-1].output)
+                        if i < len(sentence)-1:
+                            lab = sentence[i+1]
+                        else:
+                            lab = label
 
-                        predictedIndex = np.argmax(self.layers[-1].output)
-                        actualIndex = np.argmax(label)
-                        # print(predictedIndex)
-                        # print(actual, actualIndex)
-                        # print(self.layers[-1].output)
-                        if predictedIndex == actualIndex:
-                            # print("YUUUUUH")
-                            acc += 1
+                        # loss += np.mean((actual - self.layers[-1].output) ** 2)
+                        loss += self.lossFunction(lab, self.layers[-1].output)
 
                         # lossDerivative = (2 / len(self.layers)) * (self.layers[-1].output - actual)
-                        lossDerivative = self.dLossFunction(label, self.layers[-1].output)
+                        lossDerivative = self.dLossFunction(lab, self.layers[-1].output)
                         # errorL = lossDerivative * self.layers[-1].dActivation(self.layers[-1].zNeurons)
                         errorL = lossDerivative * self.layers[-1].dOutput
 
@@ -566,18 +556,28 @@ class AI:
 
                     # self.layers[-2].weights -= 0.001 * errorL * self.layers[-2].neurons
 
+                wordCount = sum(len(sentence) for sentence in samples)
+
                 for layer in self.layers:
                     layer.updateParameters(wordCount)
 
-                #if loss < 0.0000001:
-                #    print(f"Done at epoch {epoch+1}/{epochs} with loss {loss:.10f}")
-                #    break
+                # if loss < 0.0000001:
+                #     print(f"Done at epoch {epoch+1}/{epochs} with loss {loss:.10f}")
+                #     break
 
                 # if batch % 4 == 0:
                 #     # loss = loss / sum([len(d) for d in dataset])
                 #     print(f"Batch {batch + 1}/{batchCount} {loss:.10f}")
 
-                accuracy += acc / wordCount
+                predictedIndex = np.argmax(self.layers[-1].output)
+                actualIndex = np.argmax(label)
+                # print(predictedIndex)
+                # print(actual, actualIndex)
+                # print(self.layers[-1].output)
+                if predictedIndex == actualIndex:
+                    # print("YUUUUUH")
+                    accuracy += 1
+
                 loss /= wordCount
 
             if epoch % 10 == 0:

@@ -39,22 +39,22 @@ for i, each_words in enumerate(prev_words):
         X[i, j, unique_word_index[each_word]] = 1
     Y[i, unique_word_index[next_word[i]]] = 1
 
-# ai = AI(layers=[
-#             InputLayer((len(unique_words),)),
-#             LSTMLayer(len(unique_words)),
-#             # FFLayer(50, activation="Sigmoid"),
-#             # FFLayer(50, activation="ReLU"),
-#             FFLayer(len(unique_words), activation="Softmax")
-#         ],
-#         loss="CategoricalCrossEntropy",
-#         # loss="MSE",
-#         optimizer="RMSprop",
-#         # optimizer="Adam",
-#         learningRate=1.0)
+ai = AI(layers=[
+            InputLayer((len(unique_words),)),
+            LSTMLayer(len(unique_words)),
+            # FFLayer(50, activation="Sigmoid"),
+            # FFLayer(50, activation="ReLU"),
+            FFLayer(len(unique_words), activation="Softmax")
+        ],
+        loss="CategoricalCrossEntropy",
+        # loss="MSE",
+        optimizer="RMSprop",
+        # optimizer="Adam",
+        learningRate=1.0)
 
-ai = AI.load("shatgpt.model")
-ai.learningRate = 50.0
-ai.train(X, Y, epochs=200, mbSize=X.shape[0], shuffle=True)
+# ai = AI.load("shatgpt.model")
+# ai.learningRate = 40.0
+ai.train(X, Y, epochs=100, mbSize=X.shape[0], shuffle=True)
 # ai.train(dataset, epochs=500, mbSize=64, shuffle=True)
 
 ai.save("shatgpt.model")
