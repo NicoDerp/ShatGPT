@@ -248,6 +248,8 @@ class LSTMLayer(Layer):
         # self.oBiasesGr += go
 
     def updateParameters(self, n):
+        self.sGradient /= n
+
         # Output
         go = self.sGradient * np.tanh(self.output) * dSigmoid(self.zo)
 
@@ -524,34 +526,38 @@ class AI:
                 acc = 0
                 batchSize = len(samples)
 
+                wordCount = 0
+
                 # For each sentence
                 for sentence in samples:
 
                     self.clean()
 
+                    wordCount += len(sentence)
+
                     # For each word / timestep predict
                     for inputState in sentence:
                         self.feedForward(inputState)
 
-                    # loss += np.mean((actual - self.layers[-1].output) ** 2)
-                    loss += self.lossFunction(label, self.layers[-1].output)
+                        # loss += np.mean((actual - self.layers[-1].output) ** 2)
+                        loss += self.lossFunction(label, self.layers[-1].output)
 
-                    predictedIndex = np.argmax(self.layers[-1].output)
-                    actualIndex = np.argmax(label)
-                    # print(predictedIndex)
-                    # print(actual, actualIndex)
-                    # print(self.layers[-1].output)
-                    if predictedIndex == actualIndex:
-                        # print("YUUUUUH")
-                        acc += 1
+                        predictedIndex = np.argmax(self.layers[-1].output)
+                        actualIndex = np.argmax(label)
+                        # print(predictedIndex)
+                        # print(actual, actualIndex)
+                        # print(self.layers[-1].output)
+                        if predictedIndex == actualIndex:
+                            # print("YUUUUUH")
+                            acc += 1
 
-                    # lossDerivative = (2 / len(self.layers)) * (self.layers[-1].output - actual)
-                    lossDerivative = self.dLossFunction(label, self.layers[-1].output)
-                    # errorL = lossDerivative * self.layers[-1].dActivation(self.layers[-1].zNeurons)
-                    errorL = lossDerivative * self.layers[-1].dOutput
+                        # lossDerivative = (2 / len(self.layers)) * (self.layers[-1].output - actual)
+                        lossDerivative = self.dLossFunction(label, self.layers[-1].output)
+                        # errorL = lossDerivative * self.layers[-1].dActivation(self.layers[-1].zNeurons)
+                        errorL = lossDerivative * self.layers[-1].dOutput
 
-                    self.layers[-1].gradient = errorL
-                    self.layers[-1].sGradient += errorL
+                        self.layers[-1].gradient = errorL
+                        self.layers[-1].sGradient += errorL
 
                     # L-1 .. 0
                     for i in range(len(self.layers) - 2, 0, -1):
@@ -561,7 +567,7 @@ class AI:
                     # self.layers[-2].weights -= 0.001 * errorL * self.layers[-2].neurons
 
                 for layer in self.layers:
-                    layer.updateParameters(batchSize)
+                    layer.updateParameters(wordCount)
 
                 #if loss < 0.0000001:
                 #    print(f"Done at epoch {epoch+1}/{epochs} with loss {loss:.10f}")
