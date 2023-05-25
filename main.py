@@ -55,7 +55,7 @@ for prevs, cur in zip(X, Y):
 ai = AI(layers=[
             InputLayer((len(unique_words),)),
             LSTMLayer(len(unique_words)),
-            # FFLayer(30, activation="Sigmoid"),
+            # FFLayer(50, activation="Sigmoid"),
             FFLayer(50, activation="ReLU"),
             FFLayer(len(unique_words), activation="Softmax")
         ],
