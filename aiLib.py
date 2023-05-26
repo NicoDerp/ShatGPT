@@ -277,11 +277,17 @@ class LSTMLayer(Layer):
         # TODO
         # self.prev.gradient = W.T * gGates
 
-        gGates = np.array([gf, gi, gc, go])
-        U = np.array([self.c2Weights, self.i2Weights, self.f2Weights, self.o2Weights])
+        gGates = np.vstack((gc, gi, gf, go))
+        U = np.vstack((self.c2Weights, self.i2Weights, self.f2Weights, self.o2Weights))
+
+        # TODO implement matmul istedenfor and check if it is any different
+
+        self.gstate = self.gstate.reshape((1, -1))
+        print(U.T.shape, gGates.shape)
 
         # TODO aaaaaaa
-        self.dout = np.dot(U.T, gGates)
+        self.dout = U.T.dot(gGates)
+        print(self.dout.shape)
 
         prevOutput = self.prev.output.reshape((1, -1))
         # states = self.states.reshape((1, -1))
@@ -292,7 +298,7 @@ class LSTMLayer(Layer):
         gcr = gc.reshape((-1, 1))
         gor = go.reshape((-1, 1))
 
-        print(gfr.shape, prevOutput.shape)
+        print(gf.shape, prevOutput.shape)
         print(np.dot(gfr, prevOutput).shape)
 
         self.f1WeightsGr += np.dot(gfr, prevOutput)
@@ -358,15 +364,15 @@ class LSTMLayer(Layer):
 
         self.lOutput = np.zeros(self.size)
 
-        self.f1WeightsGr = np.zeros(self.prev.size)
-        self.i1WeightsGr = np.zeros(self.prev.size)
-        self.c1WeightsGr = np.zeros(self.prev.size)
-        self.o1WeightsGr = np.zeros(self.prev.size)
+        self.f1WeightsGr = np.zeros((self.size, self.prev.size))
+        self.i1WeightsGr = np.zeros((self.size, self.prev.size))
+        self.c1WeightsGr = np.zeros((self.size, self.prev.size))
+        self.o1WeightsGr = np.zeros((self.size, self.prev.size))
 
-        self.f2WeightsGr = np.zeros(self.size)
-        self.i2WeightsGr = np.zeros(self.size)
-        self.c2WeightsGr = np.zeros(self.size)
-        self.o2WeightsGr = np.zeros(self.size)
+        self.f2WeightsGr = np.zeros((self.size, self.size))
+        self.i2WeightsGr = np.zeros((self.size, self.size))
+        self.c2WeightsGr = np.zeros((self.size, self.size))
+        self.o2WeightsGr = np.zeros((self.size, self.size))
 
         self.fBiasesGr = np.zeros(self.size)
         self.iBiasesGr = np.zeros(self.size)
@@ -386,15 +392,15 @@ class LSTMLayer(Layer):
         # self.c2Weights = np.random.rand(self.size, self.prev.size)
         # self.o2Weights = np.random.rand(self.size, self.prev.size)
 
-        self.f1Weights = np.random.rand(self.prev.size)
-        self.i1Weights = np.random.rand(self.prev.size)
-        self.c1Weights = np.random.rand(self.prev.size)
-        self.o1Weights = np.random.rand(self.prev.size)
+        self.f1Weights = np.random.rand(self.size, self.prev.size)
+        self.i1Weights = np.random.rand(self.size, self.prev.size)
+        self.c1Weights = np.random.rand(self.size, self.prev.size)
+        self.o1Weights = np.random.rand(self.size, self.prev.size)
 
-        self.f2Weights = np.random.rand(self.size)
-        self.i2Weights = np.random.rand(self.size)
-        self.c2Weights = np.random.rand(self.size)
-        self.o2Weights = np.random.rand(self.size)
+        self.f2Weights = np.random.rand(self.size, self.size)
+        self.i2Weights = np.random.rand(self.size, self.size)
+        self.c2Weights = np.random.rand(self.size, self.size)
+        self.o2Weights = np.random.rand(self.size, self.size)
 
 
 class AI:
