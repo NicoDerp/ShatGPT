@@ -225,24 +225,26 @@ class LSTMLayer(Layer):
 
     def feedForward(self):
         self.lft = self.ft
-        self.zf = self.f1Weights.dot(self.state) + self.f2Weights.dot(self.prev.output) + self.fBiases
+        self.zf = self.f1Weights.dot(self.prev.output) + self.f2Weights.dot(self.state) + self.fBiases
         self.ft = Sigmoid(self.zf)
 
-        self.zi = self.i1Weights.dot(self.state) + self.i2Weights.dot(self.prev.output) + self.iBiases
+        self.zi = self.i1Weights.dot(self.prev.output) + self.i2Weights.dot(self.state) + self.iBiases
         self.it = Sigmoid(self.zi)
 
-        self.zg = self.c1Weights.dot(self.state) + self.c2Weights.dot(self.prev.output) + self.cBiases
+        self.zg = self.c1Weights.dot(self.prev.output) + self.c2Weights.dot(self.state) + self.cBiases
         self.gt = np.tanh(self.zg)
 
-        self.zo = self.o1Weights.dot(self.state) + self.o2Weights.dot(self.prev.output) + self.oBiases
+        self.zo = self.o1Weights.dot(self.prev.output) + self.o2Weights.dot(self.state) + self.oBiases
         self.ot = Sigmoid(self.zo)
 
         self.lOutput = self.output
-        self.output = self.ft * self.output + self.it * self.gt
+        self.lState = self.state
+
+        self.state = self.ft * self.state + self.it * self.gt
+        self.output = self.ot * np.tanh(self.state)
+
         self.dOutput = self.dActivation(self.output)
         self.output = self.activation(self.output)
-        self.lState = self.state
-        self.state = self.ot * np.tanh(self.output)
 
     def calculateError(self):
         # nGradient = self.next.weights.T.dot(self.next.gradient)
@@ -256,7 +258,6 @@ class LSTMLayer(Layer):
         # State gradient
         self.lgState = self.gstate
         if self.firstTimestep:
-            self.firstTimestep = False
             self.gstate = gout * self.ot * (1 - np.tanh(self.state)**2)
         else:
             self.gstate = gout * self.ot * (1 - np.tanh(self.state)**2) + self.lgState * self.lft
@@ -273,12 +274,14 @@ class LSTMLayer(Layer):
         # Output
         go = gout * np.tanh(self.state) * self.ot * (1 - self.ot)
 
+        # TODO
+        # self.prev.gradient = W.T * gGates
+
         gGates = np.array([gf, gi, gc, go])
         U = np.array([self.c2Weights, self.i2Weights, self.f2Weights, self.o2Weights])
-        print(gGates.shape, U.T.shape)
-        self.dout = np.inner(U.T, gGates)
-        print(self.dout.shape)
-        exit()
+
+        # TODO aaaaaaa
+        self.dout = np.dot(U.T, gGates)
 
         prevOutput = self.prev.output.reshape((1, -1))
         # states = self.states.reshape((1, -1))
@@ -289,21 +292,26 @@ class LSTMLayer(Layer):
         gcr = gc.reshape((-1, 1))
         gor = go.reshape((-1, 1))
 
-        self.f1WeightsGr += np.dot(gfr, states)
-        self.f2WeightsGr += np.dot(gfr, prevOutput)
-        self.fBiasesGr += gf
+        print(gfr.shape, prevOutput.shape)
+        print(np.dot(gfr, prevOutput).shape)
 
-        self.i1WeightsGr += np.dot(gir, states)
-        self.i2WeightsGr += np.dot(gir, prevOutput)
-        self.iBiasesGr += gi
+        self.f1WeightsGr += np.dot(gfr, prevOutput)
+        self.i1WeightsGr += np.dot(gir, prevOutput)
+        self.c1WeightsGr += np.dot(gcr, prevOutput)
+        self.o1WeightsGr += np.dot(gor, prevOutput)
 
-        self.c1WeightsGr += np.dot(gcr, states)
-        self.c2WeightsGr += np.dot(gcr, prevOutput)
-        self.cBiasesGr += gc
+        if not self.firstTimestep:
+            self.f2WeightsGr += np.dot(gfr, states)
+            self.fBiasesGr += gf
+            self.i2WeightsGr += np.dot(gir, states)
+            self.iBiasesGr += gi
+            self.c2WeightsGr += np.dot(gcr, states)
+            self.cBiasesGr += gc
+            self.o2WeightsGr += np.dot(gor, states)
+            self.oBiasesGr += go
 
-        self.o1WeightsGr += np.dot(gor, states)
-        self.o2WeightsGr += np.dot(gor, prevOutput)
-        self.oBiasesGr += go
+        if self.firstTimestep:
+            self.firstTimestep = False
 
     def updateParameters(self, n):
         # self.f1Weights -= self.optimizerFunc(self, 0, np.dot(gf, states.T))
@@ -350,20 +358,19 @@ class LSTMLayer(Layer):
 
         self.lOutput = np.zeros(self.size)
 
-        self.f1WeightsGr = np.zeros((self.size, self.size))
-        self.f2WeightsGr = np.zeros((self.size, self.prev.size))
+        self.f1WeightsGr = np.zeros(self.prev.size)
+        self.i1WeightsGr = np.zeros(self.prev.size)
+        self.c1WeightsGr = np.zeros(self.prev.size)
+        self.o1WeightsGr = np.zeros(self.prev.size)
+
+        self.f2WeightsGr = np.zeros(self.size)
+        self.i2WeightsGr = np.zeros(self.size)
+        self.c2WeightsGr = np.zeros(self.size)
+        self.o2WeightsGr = np.zeros(self.size)
+
         self.fBiasesGr = np.zeros(self.size)
-
-        self.i1WeightsGr = np.zeros((self.size, self.size))
-        self.i2WeightsGr = np.zeros((self.size, self.prev.size))
         self.iBiasesGr = np.zeros(self.size)
-
-        self.c1WeightsGr = np.zeros((self.size, self.size))
-        self.c2WeightsGr = np.zeros((self.size, self.prev.size))
         self.cBiasesGr = np.zeros(self.size)
-
-        self.o1WeightsGr = np.zeros((self.size, self.size))
-        self.o2WeightsGr = np.zeros((self.size, self.prev.size))
         self.oBiasesGr = np.zeros(self.size)
 
     def setup_(self, prev, nextL):
@@ -379,15 +386,15 @@ class LSTMLayer(Layer):
         # self.c2Weights = np.random.rand(self.size, self.prev.size)
         # self.o2Weights = np.random.rand(self.size, self.prev.size)
 
-        self.f1Weights = np.random.rand(self.size)
-        self.i1Weights = np.random.rand(self.size)
-        self.c1Weights = np.random.rand(self.size)
-        self.o1Weights = np.random.rand(self.size)
+        self.f1Weights = np.random.rand(self.prev.size)
+        self.i1Weights = np.random.rand(self.prev.size)
+        self.c1Weights = np.random.rand(self.prev.size)
+        self.o1Weights = np.random.rand(self.prev.size)
 
-        self.f2Weights = np.random.rand(self.prev.size)
-        self.i2Weights = np.random.rand(self.prev.size)
-        self.c2Weights = np.random.rand(self.prev.size)
-        self.o2Weights = np.random.rand(self.prev.size)
+        self.f2Weights = np.random.rand(self.size)
+        self.i2Weights = np.random.rand(self.size)
+        self.c2Weights = np.random.rand(self.size)
+        self.o2Weights = np.random.rand(self.size)
 
 
 class AI:
