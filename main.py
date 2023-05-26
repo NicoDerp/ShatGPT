@@ -44,7 +44,7 @@ ai = AI(layers=[
             # LSTMLayer(len(unique_words)),
             LSTMLayer(50),
             # FFLayer(50, activation="Sigmoid"),
-            FFLayer(50, activation="ReLU"),
+            # FFLayer(50, activation="ReLU"),
             FFLayer(len(unique_words), activation="Softmax")
         ],
         loss="CategoricalCrossEntropy",
