@@ -242,9 +242,6 @@ class LSTMLayer(Layer):
         self.gradient = self.next.weights.T.dot(self.next.gradient) * self.dOutput
 
     def calculateGradients(self):
-        # Output
-        go = self.gradient * np.tanh(self.output) * dSigmoid(self.zo)
-
         # Forget
         gf = self.gradient * self.ot * dTanH(self.output) * self.lOutput * dSigmoid(self.zf)
 
@@ -254,23 +251,31 @@ class LSTMLayer(Layer):
         # C
         gc = self.gradient * self.ot * dTanH(self.output) * self.it * dTanH(self.zg)
 
+        # Output
+        go = self.gradient * np.tanh(self.output) * dSigmoid(self.zo)
+
         prevOutput = self.prev.output.reshape((1, -1))
         states = self.states.reshape((1, -1))
 
-        self.f1WeightsGr += np.dot(gf, states.T)
-        self.f2WeightsGr += np.dot(gf, prevOutput.T)
+        gfr = gf.reshape((-1, 1))
+        gir = gi.reshape((-1, 1))
+        gcr = gc.reshape((-1, 1))
+        gor = go.reshape((-1, 1))
+
+        self.f1WeightsGr += np.dot(gfr, states)
+        self.f2WeightsGr += np.dot(gfr, prevOutput)
         self.fBiasesGr += gf
 
-        self.i1WeightsGr += np.dot(gi, states.T)
-        self.i2WeightsGr += np.dot(gi, prevOutput.T)
+        self.i1WeightsGr += np.dot(gir, states)
+        self.i2WeightsGr += np.dot(gir, prevOutput)
         self.iBiasesGr += gi
 
-        self.c1WeightsGr += np.dot(gc, states.T)
-        self.c2WeightsGr += np.dot(gc, prevOutput.T)
+        self.c1WeightsGr += np.dot(gcr, states)
+        self.c2WeightsGr += np.dot(gcr, prevOutput)
         self.cBiasesGr += gc
 
-        self.o1WeightsGr += np.dot(go, states.T)
-        self.o2WeightsGr += np.dot(go, prevOutput.T)
+        self.o1WeightsGr += np.dot(gor, states)
+        self.o2WeightsGr += np.dot(gor, prevOutput)
         self.oBiasesGr += go
 
     def updateParameters(self, n):
